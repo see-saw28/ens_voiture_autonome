@@ -2,12 +2,16 @@
 
 ## Installation
 
+## Param
+
+sim : true si on utilise un bag, false pour lancer le lidar
+map : nom de la carte utilisée pour la localisation (la carte doit se situer dans le dossier /map)
 
 ## Mapping
 
 roslaunch ens_voiture_autonome mapping.launch sim:=false
 
-### Sauvegarde de la carte
+#### Sauvegarde de la carte
 
 rosrun ros_server ros_saver -f nom_carte
 
