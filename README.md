@@ -2,6 +2,8 @@
 
 ## Installation
 
+cloner ce git dans le dossier src du catkin workspace
+puis catkin_make
 ## Param
 
 sim : true si on utilise un bag, false pour lancer le lidar
