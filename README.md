@@ -7,6 +7,7 @@ puis catkin_make
 ## Param
 
 sim : true si on utilise un bag, false pour lancer le lidar
+
 map : nom de la carte utilisée pour la localisation (la carte doit se situer dans le dossier /map)
 
 ## Mapping
