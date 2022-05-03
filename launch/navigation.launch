@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<launch>
+
+  <arg name="sim" default="false"/>
+  <arg name="map" default="map1"/>
+
+  <param name="/use_sim_time" value="sim"/>
+  
+  <node pkg="topic_tools" type="relay" name="topic_tools" args="cmd_vel vel"/>
+
+  <group if="$(arg sim)">
+	  <param name="robot_description" textfile="$(find ens_voiture_autonome)/param/car.urdf" />
+	  
+	  <node name="joint_state_publisher" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui" />
+	   
+	   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+
+	  <node pkg="rviz" type="rviz" name="rviz"
+	    args="-d $(find ens_voiture_autonome)/rviz/navigation.rviz"/>
+  </group>
+  
+  
+  <group unless="$(arg sim)">
+    <include file="$(find rplidar_ros)/launch/rplidar.launch" />
+
+  </group>
+ 
+ 
+  <include file="$(find ens_voiture_autonome)/launch/localization_vel.launch">
+    <arg name="map" value="$(arg map)" />
+    <arg name="sim" value="$(arg sim)"/>
+        
+  </include>
+    
+  <include file="$(find ens_voiture_autonome)/launch/move_base.launch" />
+    
+
+
+  
+
+</launch>

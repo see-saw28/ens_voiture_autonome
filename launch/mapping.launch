@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+
+<launch>
+
+  <arg name="sim" default="false"/>
+  
+
+  <param name="/use_sim_time" value="$(arg sim)"/>
+  
+  <group if="$(arg sim)">
+	  <param name="robot_description" textfile="$(find ens_voiture_autonome)/param/car.urdf" />
+	  
+	  <node name="joint_state_publisher" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui" />
+	   
+	   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+
+	  <node pkg="rviz" type="rviz" name="rviz"
+	    args="-d $(find ens_voiture_autonome)/rviz/mapping_demo.rviz"/>
+  </group>
+  
+  
+  <group unless="$(arg sim)">
+    <include file="$(find rplidar_ros)/launch/rplidar.launch" />
+
+  </group>
+  
+  <include file="$(find ens_voiture_autonome)/launch/mapping_hect.launch"/>
+
+ 
+
+</launch>
