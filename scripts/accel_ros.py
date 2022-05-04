@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import time
 import rospy
@@ -7,8 +7,8 @@ import adafruit_bno055
 import math
 import numpy as np
 import os
-os.environ['ROS_MASTER_URI']='http://192.168.1.239:11311'
-os.environ['ROS_IP']='192.168.1.149'
+os.environ['ROS_MASTER_URI']='http://172.20.10.9:11311'
+os.environ['ROS_IP']='172.20.10.8'
 
 from sensor_msgs.msg import Imu
 

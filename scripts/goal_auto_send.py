@@ -9,6 +9,9 @@ from geometry_msgs.msg import Pose, Point, Quaternion, PoseStamped, PoseWithCova
 from std_msgs.msg import Header
 import tf
 from getkey import getkey, keys
+import os
+os.environ['ROS_MASTER_URI']='http://172.20.10.9:11311'
+os.environ['ROS_IP']='172.20.10.8'
 
 
 

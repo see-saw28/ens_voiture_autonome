@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 
 
@@ -9,8 +9,8 @@ import os
 from getkey import getkey, keys
 
 
-os.environ['ROS_MASTER_URI']='http://192.168.1.239:11311'
-os.environ['ROS_IP']='192.168.1.149'
+os.environ['ROS_MASTER_URI']='http://172.20.10.9:11311'
+os.environ['ROS_IP']='172.20.10.8'
 
 import RPi.GPIO as GPIO
 import sys
