@@ -20,7 +20,6 @@ Ajouter ces lignes
 ```bash
 source /opt/ros/noetic/setup.bash
 source ~/catkin_ws/devel/setup.bash
-
 ```
 
 ## RPLidar
@@ -38,8 +37,23 @@ roslaunch rplidar_ros view_rplidar.launch
 ```
 
 
+## Configuration reseau 
 
+Pour configurer le réseau ROS comme dans le rapport, modification des fichiers .bashrc comme précédement :
 
+Sur le PC Master :
+```bash
+export ROS_MASTER_URI=http://MASTER_IP:11311/
+export ROS_IP=MASTER_IP
+```
+
+Sur la voiture :
+```bash
+export ROS_MASTER_URI=http://MASTER_IP:11311/
+export ROS_IP=CAR_IP
+```
+
+Il faut aussi mofifier les IP dans les programmes Python
 # ens_voiture_autonome
 
 ## Installation
