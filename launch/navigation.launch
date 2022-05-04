@@ -22,6 +22,8 @@
   
   <group unless="$(arg sim)">
     <include file="$(find rplidar_ros)/launch/rplidar.launch" />
+    <node pkg="ens_voiture_autonome" name="command" type="command.py" output="screen"/>
+    <node pkg="ens_voiture_autonome" name="imu" type="accel_ros.py" output="screen"/>
 
   </group>
  
@@ -33,6 +35,12 @@
   </include>
     
   <include file="$(find ens_voiture_autonome)/launch/move_base.launch" />
+  
+  
+
+  <node pkg="ens_voiture_autonome" name="goal_auto_send" type="goal_auto_send.py" output="screen" args="$(arg map)"/>
+
+
     
 
 

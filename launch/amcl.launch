@@ -1,7 +1,10 @@
+<?xml version="1.0"?>
+
 <launch>
     <node name="amcl" pkg="amcl" type="amcl" output="screen" >
         <!--remap from="scan" to="base_scan/scan" /-->
-        
+        use_map_topic 
+        <param name="use_map_topic" value="true"/>
         <!-- Overall filter parameters -->
         <param name="min_particles" value="1000"/>
         <param name="max_particles" value="5000"/>
