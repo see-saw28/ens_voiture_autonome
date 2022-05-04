@@ -58,8 +58,7 @@ Il faut aussi mofifier les IP dans les programmes Python
 
 ## Installation
 
-cloner ce git dans le dossier src du catkin workspace
-puis catkin_make
+Pour installer ce package, même procédure que pour le Lidar
 ```bat
 cd catkin_ws/src
 git clone https://github.com/see-saw28/ens_voiture_autonome.git
