@@ -22,8 +22,8 @@
   
   <group unless="$(arg sim)">
     <include file="$(find rplidar_ros)/launch/rplidar.launch" />
-    <node pkg="ens_voiture_autonome" name="command" type="command.py" output="screen"/>
-    <node pkg="ens_voiture_autonome" name="imu" type="accel_ros.py" output="screen"/>
+    <node pkg="ens_voiture_autonome" name="command" type="command.py" output="screen" launch-prefix="sudo"/>
+    <node pkg="ens_voiture_autonome" name="imu" type="accel_ros.py" output="screen" launch-prefix="sudo"/>
 
   </group>
  
