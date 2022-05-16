@@ -71,6 +71,29 @@ sudo apt install ros-noetic-teb-local-planner
 
 erreur
 
+## Realsense D435
+https://github.com/IntelRealSense/realsense-ros/blob/development/README.md#installation-instructions
+
+
+```bat
+sudo apt-get install ros-$ROS_DISTRO-realsense2-camera
+```
+et l'installation du sdk
+https://github.com/IntelRealSense/librealsense/blob/master/doc/distribution_linux.md#installing-the-packages
+
+### Aruco OpenCV
+
+```bat
+pip install imutils
+pip install pyrealsense2
+```
+
+Utliser un marker du dictionnaire 5x5 
+```bat
+python3 opencv_marker.py 
+```
+
+
 
 ## Configuration reseau 
 
