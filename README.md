@@ -67,6 +67,12 @@ sudo apt install ros-noetic-laser-scan-matcher
 sudo apt install ros-noetic-teb-local-planner
 ```
 
+## Explore lite
+
+```bat 
+sudo apt install ros-noetic-explore-lite
+```
+
 ## Rtabmap 
 
 erreur
