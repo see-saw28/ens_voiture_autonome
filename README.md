@@ -2,7 +2,7 @@
 
 ## ROS
 
-Installer ROS noetic (testé sur Ubuntu 20.04):
+Installer ROS noetic (testé sur Ubuntu 20.04 et pop_os! 20.04):
 http://wiki.ros.org/noetic/Installation/Ubuntu
 
 ### Catkin workspace
@@ -10,22 +10,29 @@ http://wiki.ros.org/noetic/Installation/Ubuntu
 Créer un espace catkin pour l'installation de certains packages :
 http://wiki.ros.org/catkin/Tutorials/create_a_workspace
 
-Sourcer le workspace et ROS
+Sourcer le workspace
+
+```bat
+echo "source ~/catkin_ws/devel/setup.bash" >> ~/.bashrc
+source ~/.bashrc
+```
+ou directement modifier le fichier
+
 ```bat
 cd 
 nano .bashrc
 ```
 
-Ajouter ces lignes
+Ajouter cette ligne
 ```bash
-source /opt/ros/noetic/setup.bash
+
 source ~/catkin_ws/devel/setup.bash
 ```
 
 ## RPLidar
 Pour utiliser ce package avec le Lidar A2M8, installation du package ROS (suivre les isntructions https://github.com/robopeak/rplidar_ros)
 ```bat
-cd catkin_ws/src
+cd ~/catkin_ws/src
 git clone https://github.com/robopeak/rplidar_ros.git
 cd ..
 catkin_make
@@ -35,6 +42,34 @@ Pour tester que le Lidar fonctionne :
 ```bat
 roslaunch rplidar_ros view_rplidar.launch 
 ```
+## Navigation
+
+```bat
+sudo apt install ros-noetic-navigation
+```
+
+## Hector SLAM
+
+```bat
+sudo apt install ros-noetic-hector-slam
+```
+
+## Laser scan matcher
+
+```bat
+sudo apt install ros-noetic-laser-scan-matcher
+```
+
+
+## Teb local planner
+
+```bat
+sudo apt install ros-noetic-teb-local-planner
+```
+
+## Rtabmap 
+
+erreur
 
 
 ## Configuration reseau 
@@ -60,10 +95,23 @@ Il faut aussi mofifier les IP dans les programmes Python
 
 Pour installer ce package, même procédure que pour le Lidar
 ```bat
-cd catkin_ws/src
+cd ~/catkin_ws/src
 git clone https://github.com/see-saw28/ens_voiture_autonome.git
 cd ..
 catkin_make
+```
+
+### Tester l'installation
+
+Dans un premier terminal 
+```bat
+roslaunch ens_voiture_autonome localization.launch sim:=true
+```
+Dans un second terminal 
+```bat
+roscd ens_voiture_autonome/bag/
+rosbag play 2022-03-25-16-21-15.bag --clock -l
+
 ```
 
 ## Param
