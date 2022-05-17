@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+
+<launch>
+	
+
+    <node name="aruco_detector" pkg="ens_voiture_autonome" type="aruco_left.py" output="screen" >
+	<param name="adaptiveThreshConstant" value="7" type="double"/>
+	<param name="minMarkerPerimeterRate" value="0.03" type="double"/>
+	<param name="polygonalApproxAccuracyRate" value="0.03" type="double"/>
+	<param name="cornerRefinementMethod" value="0" type="int"/>
+	<param name="perspectiveRemovePixelPerCell" value="4" type="int"/>
+	<param name="maxErroneousBitsInBorderRate" value="0.35" type="double"/>
+	<param name="errorCorrectionRate" value="0.6" type="double"/>
+	
+
+            
+    </node>
+
+
+
+</launch>
