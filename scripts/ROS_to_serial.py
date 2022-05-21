@@ -19,7 +19,8 @@ import os
 from ens_voiture_autonome.msg import Payload
 from geometry_msgs.msg import Twist
 
-
+os.environ['ROS_MASTER_URI']='http://192.168.1.174:11311'
+os.environ['ROS_IP']='192.168.1.174'
 
 #boolean used to stop thread at the end
 programEnded = False

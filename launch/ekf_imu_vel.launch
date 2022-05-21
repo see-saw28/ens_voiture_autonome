@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+
+<launch>
+  <node pkg="robot_localization" type="ekf_localization_node" name="ekf_se" clear_params="true">
+    <rosparam command="load" file="$(find ens_voiture_autonome)/param/ekf_imu_vel.yaml" />
+    <param name="odom_used" value="false"/>
+  </node>
+
+  <node pkg="ens_voiture_autonome" name="imu" type="accel_ros.py" output="screen" launch-prefix="sudo"/>
+  
+  <node pkg="ens_voiture_autonome" name="velocity" type="ROS_to_serial.py" output="screen" launch-prefix="sudo"/>
+
+</launch>
+

@@ -32,10 +32,10 @@ for i in range(controller.get_numhats()):
 # Labels for DS4 controller axes
 AXIS_LEFT_STICK_X = 0
 AXIS_LEFT_STICK_Y = 1
-AXIS_RIGHT_STICK_X = 2
-AXIS_RIGHT_STICK_Y = 5
-AXIS_R2 = 3
-AXIS_L2 = 4
+AXIS_RIGHT_STICK_X = 3
+AXIS_RIGHT_STICK_Y = 4
+AXIS_R2 = 5
+AXIS_L2 = 2
 
 # Labels for DS4 controller buttons
 # Note that there are 14 buttons (0 to 13 for pygame, 1 to 14 for Windows setup)
@@ -88,23 +88,23 @@ while quit == False:
     print("Right stick X:", axis[AXIS_RIGHT_STICK_X])
     print("Right stick Y:", axis[AXIS_RIGHT_STICK_Y])
     time.sleep(0.1) 
-   # print("L2 strength:", axis[AXIS_L2])
-    # print("R2 strength:", axis[AXIS_R2],"\n")
-    # # Buttons
-    # print("Square:", button[BUTTON_SQUARE])
-    # print("Cross:", button[BUTTON_CROSS])
-    # print("Circle:", button[BUTTON_CIRCLE])
-    # print("Triangle:", button[BUTTON_TRIANGLE])
-    # print("L1:", button[BUTTON_L1])
-    # print("R1:", button[BUTTON_R1])
-    # print("L2:", button[BUTTON_L2])
-    # print("R2:", button[BUTTON_R2])
-    # print("Share:", button[BUTTON_SHARE])
-    # print("Options:", button[BUTTON_OPTIONS])
-    # print("Left stick press:", button[BUTTON_LEFT_STICK])
-    # print("Right stick press:", button[BUTTON_RIGHT_STICK])
-    # print("PS:", button[BUTTON_PS])
-    # print("Touch Pad:", button[BUTTON_PAD],"\n")
+    print("L2 strength:", axis[AXIS_L2])
+    print("R2 strength:", axis[AXIS_R2],"\n")
+    # Buttons
+    print("Square:", button[BUTTON_SQUARE])
+    print("Cross:", button[BUTTON_CROSS])
+    print("Circle:", button[BUTTON_CIRCLE])
+    print("Triangle:", button[BUTTON_TRIANGLE])
+    print("L1:", button[BUTTON_L1])
+    print("R1:", button[BUTTON_R1])
+    print("L2:", button[BUTTON_L2])
+    print("R2:", button[BUTTON_R2])
+    print("Share:", button[BUTTON_SHARE])
+    print("Options:", button[BUTTON_OPTIONS])
+    print("Left stick press:", button[BUTTON_LEFT_STICK])
+    print("Right stick press:", button[BUTTON_RIGHT_STICK])
+    print("PS:", button[BUTTON_PS])
+    print("Touch Pad:", button[BUTTON_PAD],"\n")
     # Hats
     print("Hat X:", hat[HAT_1][0])
     print("Hat Y:", hat[HAT_1][1],"\n")
