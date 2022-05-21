@@ -23,6 +23,7 @@ import pygame
 import os
 import rospy
 from ens_voiture_autonome.msg import Payload, DS4
+from geometry_msgs.msg import Twist
 
 # os.environ['ROS_MASTER_URI']='http://192.168.1.174:11311'
 # os.environ['ROS_IP']='192.168.1.174'
@@ -125,27 +126,17 @@ vit_old = 0
 
 
 vit_max = 5
+vitesse = 0
 
 
-# pub = rospy.Publisher('path_marker', Marker, queue_size=5)
 
-#Functions
-def threadUpdateTerminal(serialPort, tkTerminal, stringBuffer):
-    while not programEnded:
-        comPortList = [p[0] for p in list(serial.tools.list_ports.comports())]
-        if serialPort.is_open and serialPort.port in comPortList:
-            stringBuffer += serialPort.read_all().decode("ASCII")
-            string = stringBuffer.split('Vmes = ')
-            if len(string)>1 :
-                Vmes=int(string[1].split(' ')[0])/1000
-                print(Vmes)
-            if len(stringBuffer) > terminalBufferSize:
-                stringBuffer = stringBuffer[(len(stringBuffer) - terminalBufferSize):]
-            if not programEnded:
-                tkTerminal.delete(1.0, END)
-                tkTerminal.insert(END, stringBuffer)
-        time.sleep(0.05)
-    
+        
+        
+def callback_vel(msg):
+    stringBuffer = f'Vmes = {msg.linear.x}, Vcons = {vitesse}'
+    if not programEnded:
+        terminal.delete(1.0, END)
+        terminal.insert(END, stringBuffer)
 
 #Functions
 def threadDS4(comm1):
@@ -241,7 +232,7 @@ def callback(msg):
     global asservissement
     global backward
     global vit_old
-   
+    global vitesse
     
         
     leftHat = hat[HAT_1][0]==-1
@@ -262,6 +253,7 @@ def callback(msg):
     
    
     vitesse = -vit_max*msg.AXIS_RIGHT_STICK_Y
+    # print(msg.AXIS_RIGHT_STICK_Y)
     
     if asservissement:
         
@@ -305,69 +297,7 @@ def callback(msg):
         
     vit_old = vitesse
 
-def threadSerialPort(serialPort, tkWindow, portCB):
-    """
-    Enables to connect and disconnec serial ports while
-    the program is running.
 
-    Parameters
-    ----------
-    serialPort : serialwin32.Serial
-        Serial port object used to communicate.
-    tkWindow : Tk
-        Current window.
-
-    Returns
-    -------
-    None.
-
-    """
-    #The program crashes when it tries to acces destroyed widgets,
-    #save previous ports to limit their acces.
-    previousPorts = []
-    
-    #Infinite loop
-    while not programEnded:
-        #Check every ports connected, save them if they changed
-        comPortList = [p[0] for p in list(serial.tools.list_ports.comports())]
-        if not comPortList == previousPorts:
-            #Change detected, modify combobox
-            if len(comPortList) == 0:
-                portCB['values'] = ["No port"]
-                portCB.set("No port")
-            else:
-                portCB['values'] = comPortList
-        previousPorts = comPortList.copy()
-        
-        #If nothing is connected, try to connect to ports until it's connected
-        if (not serialPort.is_open):    
-            for port in comPortList:
-                try:
-                    serialPort.port = port
-                    serialPort.open()
-                    if not programEnded:
-                        tkWindow.title("PWM tester - connected [{}]".format(port))
-                    portCB.set(port)
-                except serial.SerialException:
-                    print("Unable to open port " + port)
-        #Else, if the selected port is not the connected one, change it
-        elif portCB.get() not in [serialPort.port, "No port"]:
-            port = portCB.get()
-            try:
-                serialPort.close()
-                serialPort.port = port
-                serialPort.open()
-                if not programEnded:
-                    tkWindow.title("PWM tester - connected [{}]".format(port))
-            except serial.SerialException:
-                print("Unable to open port " + port)
-        #Else, if the connection has ended, close the port
-        elif (serialPort.port not in comPortList):
-            serialPort.close()
-            if not programEnded:
-                tkWindow.title("PWM tester - connexion pending")
-        #Wait to avoid spam
-        time.sleep(0.1)
         
 def send_payload(payload):
     msg = Payload()
@@ -408,7 +338,7 @@ def slideProp(var_prop):
     payload = (pwmProp, pwmDir)
     msg = Payload()
     msg.Protocol = comm.protocol
-    print(comm.protocol, payload)
+    # print(comm.protocol, payload)
     if comm.protocol == "PWM":
         
         msg.pwmProp = payload[0]
@@ -445,7 +375,7 @@ def slideDir(var_dir):
     payload = (pwmProp, pwmDir)
     msg = Payload()
     msg.Protocol = comm.protocol
-    print(comm.protocol, payload)
+    # print(comm.protocol, payload)
     if comm.protocol == "PWM":
         
         msg.pwmProp = payload[0]
@@ -527,6 +457,7 @@ rospy.init_node('PWM_tester', anonymous=False)
 pub = rospy.Publisher('/payload',Payload,queue_size=5)
 rospy.Subscriber('DS4_input',DS4, callback)
 
+
 #Window size
 width = 750
 height = 350
@@ -595,12 +526,14 @@ protocolCB.pack(side=LEFT, anchor="nw")
 terminal = Text(lfTerminal, padx=10, pady=10, state='normal')
 terminal.pack()
 
+rospy.Subscriber('vel',Twist, callback_vel)
+
 # #Timer init.
 # terminalBuffer = ""
 # terminalUpdateThread = threading.Thread(target=threadUpdateTerminal, args=(sp, terminal, terminalBuffer, ))
 # terminalUpdateThread.start()
 
-# #Thread Init.
+# # #Thread Init.
 # threadSPManager = threading.Thread(target=threadSerialPort, args=(sp, root, comportCB, ))
 # threadSPManager.start()
 
