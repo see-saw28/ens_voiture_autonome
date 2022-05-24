@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+
+<launch>
+
+  <arg name="map" />
+  <arg name="sim" default="false"/>
+  
+  <param name="/use_sim_time" value="$(arg sim)"/>
+  
+  <node pkg="tf" type="static_transform_publisher" name="base_link_to_laser"  args="0 0 0 3.1415 0 0 base_link laser 10" />
+
+  
+
+  <node name="map_server" pkg="map_server" type="map_server" args="$(find ens_voiture_autonome)/map/$(arg map).yaml" />
+
+  
+
+  <group unless="$(arg sim)">
+	  <node pkg="ens_voiture_autonome" name="odom" type="odom.py" output="screen"/> 
+  </group>
+
+ 
+ <include file="$(find ens_voiture_autonome)/launch/lsm_odom.launch"/>
+
+
+  <include file="$(find ens_voiture_autonome)/launch/amcl.launch"/>
+    
+
+</launch>

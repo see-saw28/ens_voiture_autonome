@@ -5,7 +5,7 @@
 <arg name="sim" default="false"/>
 <arg name="map" default="map1"/>
 
-<param name="/use_sim_time" value="sim"/>
+<param name="/use_sim_time" value="(arg sim)"/>
 
  
   
@@ -21,10 +21,7 @@
   </group>
   
   
-  <group unless="$(arg sim)">
-    <include file="$(find rplidar_ros)/launch/rplidar.launch" />
-
-  </group>
+  
   
   <include file="$(find ens_voiture_autonome)/launch/localization_vel.launch">
     <arg name="map" value="$(arg map)" />

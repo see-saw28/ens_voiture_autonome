@@ -14,7 +14,6 @@ import os
 #os.environ['ROS_IP']='172.20.10.8'
 
 
-
 def callback(msg): 
     global i
     global position

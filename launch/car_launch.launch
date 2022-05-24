@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+    <node pkg="ens_voiture_autonome" name="command" type="command.py" output="screen" launch-prefix="sudo"/>
+    <node pkg="ens_voiture_autonome" name="imu" type="accel_ros.py" output="screen" launch-prefix="sudo"/>
+    <node pkg="ens_voiture_autonome" name="ROS_serial" type="ROS_to_serial.py" output="screen" launch-prefix="sudo"/>
+</launch>
+ 
+ 

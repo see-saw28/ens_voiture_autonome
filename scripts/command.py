@@ -9,8 +9,8 @@ import os
 from getkey import getkey, keys
 
 
-os.environ['ROS_MASTER_URI']='http://172.20.10.9:11311'
-os.environ['ROS_IP']='172.20.10.8'
+os.environ['ROS_MASTER_URI']='http://192.168.1.174:11311'
+os.environ['ROS_IP']='192.168.1.149'
 
 import RPi.GPIO as GPIO
 import sys
@@ -83,10 +83,10 @@ def callback(msg):
 
 	
 
-	rate.sleep()
+# 	rate.sleep()
 
 def listener_and_pub():
-	rospy.Subscriber("/vel", Twist, callback) #/cmd_vel /key_vel /ps3_vel /joy
+	rospy.Subscriber("/cmd_vel", Twist, callback) #/cmd_vel /key_vel /ps3_vel /joy
 	rospy.spin()
 	
 if __name__ == '__main__':

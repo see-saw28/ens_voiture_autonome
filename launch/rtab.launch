@@ -8,7 +8,7 @@
   <!--           See "delete_db_on_start" option below...                                -->
   
   <!-- Choose visualization -->
-  <arg name="rviz" default="true" />
+  <arg name="rviz" default="false" />
   <arg name="rtabmapviz" default="false" />
   
   <!-- Choose hector_slam or icp_odometry for odometry -->

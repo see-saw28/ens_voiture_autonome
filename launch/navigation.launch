@@ -4,7 +4,7 @@
   <arg name="sim" default="false"/>
   <arg name="map" default="map1"/>
 
-  <param name="/use_sim_time" value="sim"/>
+<param name="/use_sim_time" value="(arg sim)"/>
   
   <node pkg="topic_tools" type="relay" name="topic_tools" args="cmd_vel vel"/>
 
