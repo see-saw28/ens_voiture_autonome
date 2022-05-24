@@ -125,7 +125,7 @@ leftHat_old = False
 vit_old = 0
 
 
-vit_max = 5
+vit_max = 2
 vitesse = 0
 
 
@@ -189,7 +189,9 @@ def threadDS4(comm1):
                 print('Mode direct, marche arrière')
                 pwmProp = 1500
                 
-                send_payload((pwmProp, pwmDir))
+                for i in range(100):
+                    send_payload((pwmProp, pwmDir))
+                    
                 time.sleep(0.2)
                 send_payload((pwmProp, pwmDir))
                 time.sleep(0.2)
@@ -526,7 +528,7 @@ protocolCB.pack(side=LEFT, anchor="nw")
 terminal = Text(lfTerminal, padx=10, pady=10, state='normal')
 terminal.pack()
 
-rospy.Subscriber('vel',Twist, callback_vel)
+rospy.Subscriber('cmd_vel',Twist, callback_vel)
 
 # #Timer init.
 # terminalBuffer = ""

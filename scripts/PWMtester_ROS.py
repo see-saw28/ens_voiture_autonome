@@ -24,8 +24,8 @@ import os
 import rospy
 from ens_voiture_autonome.msg import Payload
 
-os.environ['ROS_MASTER_URI']='http://192.168.1.174:11311'
-os.environ['ROS_IP']='192.168.1.174'
+#os.environ['ROS_MASTER_URI']='http://192.168.1.174:11311'
+#os.environ['ROS_IP']='192.168.1.174'
 
 
 os.environ["SDL_VIDEODRIVER"] = "dummy"

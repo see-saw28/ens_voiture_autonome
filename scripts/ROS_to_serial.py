@@ -19,8 +19,8 @@ import os
 from ens_voiture_autonome.msg import Payload
 from geometry_msgs.msg import Twist
 
-os.environ['ROS_MASTER_URI']='http://192.168.1.174:11311'
-os.environ['ROS_IP']='192.168.1.174'
+#os.environ['ROS_MASTER_URI']='http://192.168.1.174:11311'
+#os.environ['ROS_IP']='192.168.1.174'
 
 #boolean used to stop thread at the end
 programEnded = False
@@ -56,24 +56,69 @@ terminalBufferSize = 128
 
 # pub = rospy.Publisher('path_marker', Marker, queue_size=5)
 
+import struct
 
+def calculateChecksum(speed_bytes):
+    checksum = 255
+    for i in range(4):
+        
+        checksum ^= speed_bytes[i]
+    return checksum
         
 def threadSpeedMeasure(serialPort, stringBuffer, pub):
+    receiveState = 'START_FRAME'
+    number_bytes = 1
+
     while not programEnded:
         comPortList = [p[0] for p in list(serial.tools.list_ports.comports())]
         if serialPort.is_open and serialPort.port in comPortList:
-            stringBuffer += serialPort.read_all().decode("ASCII")
+            # print(serialPort.in_waiting)
+            c = serialPort.read_all()
+        
+            
+            frame_received = False
+            i=0
+            while not frame_received:
+                # print(i)
+                if i+5<len(c):
+                    start = c[len(c)-i-6]
+                    speed_bytes = c[len(c)-i-5:len(c)-i-1]
+                    speed = struct.unpack('f', speed_bytes)
+                    cs = c[len(c)-i-1]
+                   
+                    
+                    if start==255 and cs == calculateChecksum(speed_bytes) and speed_bytes[0]!= 255:
+                        msg = Twist()
+                    
+                        msg.linear.x = speed[0]
+                        pub.publish(msg)
+                        frame_received = True
+                        # print(start, speed, speed_bytes, cs, len(c))
+                        
+                    else :
+                        i+=1
+                        
+                else :
+                    print('dommage')
+                    break
+            
+                
+                
+                
+            
+            '''stringBuffer += serialPort.read_all().decode("ASCII")
             # print(stringBuffer)
             string = stringBuffer.split('Vmes = ')
             if len(string)>1 :
                 Vmes=int(string[1].split(' ')[0])/1000
                 # print(Vmes)
                 msg = Twist()
-                msg.linear.x = Vmes
+                msg.linear.x = Vmes*1.04
                 pub.publish(msg)
             if len(stringBuffer) > terminalBufferSize:
-                stringBuffer = stringBuffer[(len(stringBuffer) - terminalBufferSize):]
-        time.sleep(0.05)
+                stringBuffer = stringBuffer[(len(stringBuffer) - terminalBufferSize):]'''
+             
+        time.sleep(0.01)
     
 
 def threadSerialPort(serialPort, portCB):
@@ -172,10 +217,12 @@ def callback(msg):
     #     comm.setProtocol(protocol)
     
 
+
     
 rospy.init_node('ROS_to_serial', anonymous=False)
 pub = rospy.Publisher('/vel',Twist,queue_size=5)
 rospy.Subscriber("/payload", Payload, callback)
+# rospy.Subscriber("/cmd_vel", Twist, vel_callback)
 
 #Timer init.
 terminalBuffer = ""
@@ -188,9 +235,9 @@ comportCB = "No port"
 # threadSPManager = threading.Thread(target=threadSerialPort, args=(sp, comportCB, ))
 # threadSPManager.start()
 
-#Thread Init.
-threadDS4Manager = threading.Thread(target=threadDS4, args=(sp, comportCB, ))
-threadDS4Manager.start()
+# #Thread Init.
+# threadDS4Manager = threading.Thread(target=threadDS4, args=(sp, comportCB, ))
+# threadDS4Manager.start()
 
 
 while not rospy.is_shutdown():

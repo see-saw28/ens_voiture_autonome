@@ -44,5 +44,8 @@ bool RE_RIGHT_STICK
 bool RE_PS
 bool RE_PAD
 
+bool RE_HAT_X
+bool RE_HAT_Y
+
 int8 HAT_X
 int8 HAT_Y

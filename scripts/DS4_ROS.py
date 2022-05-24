@@ -62,6 +62,8 @@ old_RIGHT_STICK = False
 old_PS = False
 old_PAD = False
 
+old_HAT_X = 0
+old_HAT_Y = 0
 
 # Labels for DS4 controller hats (Only one hat control)
 HAT_1 = 0
@@ -79,6 +81,7 @@ if __name__ == '__main__':
 
         controller = pygame.joystick.Joystick(0)
         controller.init()
+        print('DS4 connected')
 
         # Three types of controls: axis, button, and hat
         axis = {}
@@ -106,7 +109,7 @@ if __name__ == '__main__':
         
         #msg.pose = Pose(Point(x, y, 0.),Quaternion(*tf.transformations.quaternion_from_euler(roll, pitch, yaw)))
         
-        while not quit:
+        while not (quit or rospy.is_shutdown()):
 
             msg = DS4()
             # Get events
@@ -161,6 +164,8 @@ if __name__ == '__main__':
             msg.RE_RIGHT_STICK = (button[BUTTON_RIGHT_STICK] and not(old_RIGHT_STICK))
             msg.RE_PS = (button[BUTTON_PS] and not(old_PS))
             msg.RE_PAD = (button[BUTTON_PAD] and not(old_PAD))
+            msg.RE_HAT_X = (hat[HAT_1][0] != old_HAT_X)
+            msg.RE_HAT_Y = (hat[HAT_1][1] != old_HAT_Y)
             
             old_SQUARE = button[BUTTON_SQUARE]
             old_CROSS = button[BUTTON_CROSS]
@@ -176,7 +181,8 @@ if __name__ == '__main__':
             old_RIGHT_STICK = button[BUTTON_RIGHT_STICK]
             old_PS = button[BUTTON_PS]
             old_PAD = button[BUTTON_PAD]
-           
+            old_HAT_X = hat[HAT_1][0]
+            old_HAT_Y = hat[HAT_1][1]
             
         
             quit = button[BUTTON_PS]
