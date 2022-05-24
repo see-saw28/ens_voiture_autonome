@@ -10,6 +10,8 @@ import numpy as np
 from sensor_msgs.msg import LaserScan
 import matplotlib.pyplot as plt
 
+import lidar_tools as lt
+
 
 def callback(data):
     angle_min = data.angle_min
@@ -18,8 +20,17 @@ def callback(data):
     ranges = data.ranges
     print(angle_min, angle_max)
     
+    angles = np.linspace(angle_min,angle_max,len(ranges))
+    x=[]
+    y=[]
+    for i,angle in enumerate(angles):
+        x.append(ranges[i]*np.cos(angle))
+        y.append(ranges[i]*np.sin(angle))
+        
+    print(x[0],x[180])
     
-def lidar_decimation()
+    
+
 
 def main():
 
