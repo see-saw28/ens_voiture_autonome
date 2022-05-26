@@ -27,7 +27,7 @@ driving_mode_dict = {0:'MANUAL',1:'PURE PURSUIT',2:'STANLEY CONTROLLER'}
 def callback(data):
     global vitesse_max
     global driving_mode
-    global PP_steering
+    global speed_mode
     
     vx = -data.AXIS_RIGHT_STICK_Y*vitesse_max
     msg = Twist()
@@ -46,6 +46,14 @@ def callback(data):
         
     elif driving_mode == 2 :
         msg.angular.z = SC_steering
+        
+        if speed_mode == 0:
+            msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
+            
+            if msg.linear.x < 0:
+                msg.angular.z = -SC_steering
+            pub.publish(msg)    
+    
        
     pub.publish(msg)
     
@@ -75,7 +83,35 @@ def pure_pursuit_callback(data):
     
 def stanley_control_callback(data):
     global SC_steering
+    global SC_speed
+    
+    SC_speed = data.linear.x
     SC_steering = data.angular.z
+    
+    msg = Twist()
+    
+    if driving_mode == 2 :
+        
+        msg.angular.z = PP_steering
+            
+        if speed_mode == 1:
+            msg.linear.x = speed_max
+            
+        elif speed_mode == 2:
+            msg.linear.x = speed_max*np.exp(-SC_steering**2/sigma2)
+            
+        elif speed_mode == 3:
+            if abs(PP_steering)>binary_steering_threshold:
+                msg.linear.x = speed_max*corner_speed_coef
+                
+            else:
+                msg.linear.x = speed_max
+                
+        elif speed_mode == 4:
+            msg.linear.x = PP_speed
+        
+        if speed_mode != 0:
+            pub.publish(msg)
 
 def listener_and_pub():
     rospy.Subscriber("/DS4_input", DS4, callback)

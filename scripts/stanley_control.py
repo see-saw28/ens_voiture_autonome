@@ -30,7 +30,7 @@ from geometry_msgs.msg import Twist
 from geometry_msgs.msg import PoseStamped
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from ens_voiture_autonome.msg import DS4
-from nav_msgs.msg import Path
+from nav_msgs.msg import Path, Odometry
 import tf
 
 
@@ -38,7 +38,8 @@ import tf
 
 k = 0.1  # Cross track error gain
 wheelbase_length = 0.257  # [m]
-max_steering_angle = 0.44926 # [rad]
+max_steering_angle = 0.30 # [rad]
+vitesse_max=2
 
 #####################################
 
@@ -46,6 +47,7 @@ max_steering_angle = 0.44926 # [rad]
 course_x = []
 course_y = []
 course_yaw = []
+speeds = []
 
 class State:
 
@@ -75,8 +77,10 @@ def stanley_control(state, course_x, course_y, course_yaw):
 
     # Cap max steering wheel angle
     delta = np.clip(delta, -max_steering_angle, max_steering_angle)
+    
+    speed = speeds[current_target_ind]
 
-    return delta, current_target_ind
+    return speed, delta, current_target_ind
 
 
 def normalize_angle(angle):
@@ -132,6 +136,7 @@ def path_callback(data):
     global course_x
     global course_y
     global course_yaw
+    global speeds
 
     path_x = []
     path_y = []
@@ -147,22 +152,14 @@ def path_callback(data):
     course_x = path_x
     course_y = path_y
     course_yaw = path_yaw
+    speeds = np.zeros(len(course_x))
 
 
 def vel_callback(data):
 
     global state
-    global vitesse_max
     
-    state.v = -vitesse_max*data.AXIS_RIGHT_STICK_Y
-    
-    if (data.HAT_Y == 1 and data.RE_HAT_Y):
-        vitesse_max = min(vitesse_max+1, 6)
-        print(f'vitesse max :{vitesse_max} m/s')
-        
-    elif (data.HAT_Y == -1 and data.RE_HAT_Y):
-        vitesse_max = max(vitesse_max-1,1)
-        print(f'vitesse max :{vitesse_max} m/s')
+    state.v = data.linear.x
 
 def main():
 
@@ -181,7 +178,7 @@ def main():
     # Get current state of truck
     rospy.Subscriber('amcl_pose', PoseStamped, update_state_callback, queue_size=10)
     rospy.Subscriber('trajectory', Path, path_callback, queue_size=10)
-    rospy.Subscriber('DS4_input', DS4, vel_callback, queue_size=10)
+    rospy.Subscriber('vel', Twist, vel_callback, queue_size=10)
 
     # Start a TF broadcaster
     tf_br = tf.TransformBroadcaster()
@@ -191,15 +188,16 @@ def main():
         # Get steering angle
         if len(course_x) != 0:
             steering_angle, target_ind = stanley_control(state, course_x, course_y, course_yaw)
-            tf_br.sendTransform((course_x[target_ind], course_y[target_ind], 0.0), quaternion_from_euler(0.0, 0.0, 3.1415), rospy.Time.now() , "look_ahead_point", "wp_path")
+            tf_br.sendTransform((course_x[target_ind], course_y[target_ind], 0.0), quaternion_from_euler(0.0, 0.0, 3.1415), rospy.Time.now() , "look_ahead_point2", "map")
         else:
             steering_angle = 0.0
             target_ind = 0
+            speed = 0.0
         
         # Publish steering msg
         msg = Twist()
         msg.angular.z = steering_angle
-        msg.linear.x = state.v
+        msg.linear.x = speed
         pub.publish(msg)
 
         rate.sleep()

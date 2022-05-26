@@ -28,7 +28,7 @@ import numpy as np
 from std_msgs.msg import Float64
 from geometry_msgs.msg import PointStamped, Twist, PoseWithCovarianceStamped
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
-from nav_msgs.msg import Path
+from nav_msgs.msg import Path, Odometry
 from ens_voiture_autonome.msg import DS4
 import tf
 
@@ -152,7 +152,11 @@ def vel_callback(data):
     
     state.v = data.linear.x
     
+def odom_callback(data):
     
+    global state
+    state.v = -data.twist.linear.x
+    print(state.v)
 
 
 def main():
@@ -171,8 +175,9 @@ def main():
     # Get current state of truck
     #rospy.Subscriber('pf/viz/inferred_pose', PoseStamped, update_state_callback, queue_size=10)
     rospy.Subscriber('amcl_pose', PoseWithCovarianceStamped, update_state_callback, queue_size=100)
-    rospy.Subscriber('trajectory', Path, path_callback, queue_size=10)
-    rospy.Subscriber('vel', Twist, vel_callback, queue_size=10)
+    #rospy.Subscriber('trajectory', Path, path_callback, queue_size=10)
+    # rospy.Subscriber('vel', Twist, vel_callback, queue_size=10)
+    rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
 
     # Start a TF broadcaster
     tf_br = tf.TransformBroadcaster()
