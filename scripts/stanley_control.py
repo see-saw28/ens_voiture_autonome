@@ -27,9 +27,9 @@ import rospy
 from std_msgs.msg import Float64
 from geometry_msgs.msg import PointStamped
 from geometry_msgs.msg import Twist
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseWithCovarianceStamped
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
-from ens_voiture_autonome.msg import DS4
+# from ens_voiture_autonome.msg import DS4
 from nav_msgs.msg import Path, Odometry
 import tf
 
@@ -108,12 +108,14 @@ def calc_target_index(state, course_x, course_y):
     d = [np.sqrt(idx ** 2 + idy ** 2) for (idx, idy) in zip(dx, dy)]
     error_front_axle = min(d)
     target_idx = d.index(error_front_axle)
+    # print(target_idx)
 
     target_yaw = normalize_angle(np.arctan2(
         front_y - course_y[target_idx], front_x - course_x[target_idx]) - state.yaw)
     if target_yaw > 0.0:
         error_front_axle = - error_front_axle
-
+        
+    
     return target_idx, error_front_axle
 
 
@@ -123,6 +125,8 @@ def update_state_callback(data):
 
     state.x = data.pose.pose.position.x
     state.y = data.pose.pose.position.y
+    
+    # print(state.x, state.y)
 
     # Convert quaternions to euler to get yaw
     orientation_list = [data.pose.pose.orientation.x, data.pose.pose.orientation.y, data.pose.pose.orientation.z, data.pose.pose.orientation.w]
@@ -152,7 +156,7 @@ def path_callback(data):
     course_x = path_x
     course_y = path_y
     course_yaw = path_yaw
-    speeds = np.zeros(len(course_x))
+    speeds = np.ones(len(course_x))
 
 
 def vel_callback(data):
@@ -160,6 +164,14 @@ def vel_callback(data):
     global state
     
     state.v = data.linear.x
+    
+    
+def odom_callback(data):
+    
+    global state
+    state.v = -data.twist.twist.linear.x
+    # print(state.v)
+
 
 def main():
 
@@ -173,12 +185,13 @@ def main():
     rate = rospy.Rate(10) # hz
 
     # Publish
-    pub = rospy.Publisher('cmd_vel2', Twist, queue_size=10)
+    pub = rospy.Publisher('stanley_control_cmd', Twist, queue_size=10)
 
     # Get current state of truck
-    rospy.Subscriber('amcl_pose', PoseStamped, update_state_callback, queue_size=10)
+    rospy.Subscriber('amcl_pose', PoseWithCovarianceStamped, update_state_callback, queue_size=10)
     rospy.Subscriber('trajectory', Path, path_callback, queue_size=10)
     rospy.Subscriber('vel', Twist, vel_callback, queue_size=10)
+    rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
 
     # Start a TF broadcaster
     tf_br = tf.TransformBroadcaster()
@@ -187,8 +200,8 @@ def main():
 
         # Get steering angle
         if len(course_x) != 0:
-            steering_angle, target_ind = stanley_control(state, course_x, course_y, course_yaw)
-            tf_br.sendTransform((course_x[target_ind], course_y[target_ind], 0.0), quaternion_from_euler(0.0, 0.0, 3.1415), rospy.Time.now() , "look_ahead_point2", "map")
+            speed, steering_angle, target_ind = stanley_control(state, course_x, course_y, course_yaw)
+            tf_br.sendTransform((course_x[target_ind], course_y[target_ind], 0.0), quaternion_from_euler(0.0, 0.0, course_yaw[target_ind]), rospy.Time.now() , "look_ahead_point2", "map")
         else:
             steering_angle = 0.0
             target_ind = 0

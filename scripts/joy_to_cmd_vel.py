@@ -9,77 +9,129 @@ import rospy
 import os
 from ens_voiture_autonome.msg import DS4
 from geometry_msgs.msg import Twist
+import numpy as np
+
+
 
 
 rospy.init_node('joy_to_cmd_vel', anonymous=False)
 pub = rospy.Publisher('/cmd_vel',Twist,queue_size=5)
 
-vitesse_max=2
-angle_max=0.30
+speed_max=2
+steer_max=0.30
 
+corner_speed_coef = 0.5
+sigma2 = -steer_max**2/np.log(corner_speed_coef)
+binary_steering_threshold = 0.1
+
+PP_spped = 0
 PP_steering = 0
+
+SC_speed = 0
 SC_steering = 0
 
+speed_mode = 0
 driving_mode = 0
 
 driving_mode_dict = {0:'MANUAL',1:'PURE PURSUIT',2:'STANLEY CONTROLLER'}
+speed_mode_dict = {0:'MANUAL',1:'CONSTANT',2:'GAUSSIAN', 3:'BINARY',4:'RECORDED'}
+
+print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
 
 def callback(data):
-    global vitesse_max
+    global speed_max
     global driving_mode
     global speed_mode
     
-    vx = -data.AXIS_RIGHT_STICK_Y*vitesse_max
+    vx = -data.AXIS_RIGHT_STICK_Y*speed_max
     msg = Twist()
-    msg.linear.x = -data.AXIS_RIGHT_STICK_Y*vitesse_max
+    
     
     if driving_mode == 0:
-       msg.angular.z = -data.AXIS_LEFT_STICK_X*angle_max
+       msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
+       msg.angular.z = -data.AXIS_LEFT_STICK_X*steer_max
+       pub.publish(msg)
        
-    elif driving_mode == 1 :
+    elif driving_mode == 1 and speed_mode == 0 :
         
-        if msg.linear.x > 0:
-            msg.angular.z = PP_steering
+        
+        msg.angular.z = PP_steering
+        msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
+        pub.publish(msg)   
+       
             
-        else :
-            msg.angular.z = -PP_steering
+            
         
-    elif driving_mode == 2 :
+    elif driving_mode == 2 and speed_mode == 0 :
         msg.angular.z = SC_steering
-        
-        if speed_mode == 0:
-            msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
+        msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
             
-            if msg.linear.x < 0:
-                msg.angular.z = -SC_steering
-            pub.publish(msg)    
+        # if msg.linear.x < 0:
+        #     msg.angular.z = -SC_steering
+        pub.publish(msg)    
     
        
-    pub.publish(msg)
     
-    if (data.HAT_Y == 1 and data.RE_HAT_Y):
-        vitesse_max = min(vitesse_max+1, 6)
-        print(f'vitesse max :{vitesse_max} m/s')
+    
+    if (data.RE_R1):
+        speed_max = min(speed_max+0.5, 6)
+        print(f'vitesse max :{speed_max} m/s')
         
-    elif (data.HAT_Y == -1 and data.RE_HAT_Y):
-        vitesse_max = max(vitesse_max-1,1)
-        print(f'vitesse max :{vitesse_max} m/s')
+    elif (data.RE_L1):
+        speed_max = max(speed_max-0.5,1)
+        print(f'vitesse max :{speed_max} m/s')
         
     if (data.HAT_X == 1 and data.RE_HAT_X):
         driving_mode = min(driving_mode+1, 2)
-        print(f'MODE {driving_mode_dict[driving_mode]}')
+        print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
         
     elif (data.HAT_X == -1 and data.RE_HAT_X):
         driving_mode = max(driving_mode-1,0)
-        print(f'MODE {driving_mode_dict[driving_mode]}')
+        print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
+        
+    if (data.HAT_Y == 1 and data.RE_HAT_Y):
+        speed_mode = min(speed_mode+1, 4)
+        print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
+        
+    elif (data.HAT_Y == -1 and data.RE_HAT_Y):
+        speed_mode = max(speed_mode-1,0)
+        print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
+          
         
 
     
     
 def pure_pursuit_callback(data):
     global PP_steering
+    global PP_speed
     
+    PP_speed = data.linear.x
     PP_steering = data.angular.z
+    
+    msg = Twist()
+    
+    if driving_mode == 1 :
+        
+        msg.angular.z = PP_steering
+            
+        if speed_mode == 1:
+            msg.linear.x = speed_max
+            
+        elif speed_mode == 2:
+            msg.linear.x = speed_max*np.exp(-PP_steering**2/sigma2)
+            
+        elif speed_mode == 3:
+            if abs(PP_steering)>binary_steering_threshold:
+                msg.linear.x = speed_max*corner_speed_coef
+                
+            else:
+                msg.linear.x = speed_max
+                
+        elif speed_mode == 4:
+            msg.linear.x = PP_speed
+        
+        if speed_mode != 0:
+            pub.publish(msg)
     
 def stanley_control_callback(data):
     global SC_steering
@@ -92,7 +144,7 @@ def stanley_control_callback(data):
     
     if driving_mode == 2 :
         
-        msg.angular.z = PP_steering
+        msg.angular.z = SC_steering
             
         if speed_mode == 1:
             msg.linear.x = speed_max
@@ -108,7 +160,7 @@ def stanley_control_callback(data):
                 msg.linear.x = speed_max
                 
         elif speed_mode == 4:
-            msg.linear.x = PP_speed
+            msg.linear.x = SC_speed
         
         if speed_mode != 0:
             pub.publish(msg)

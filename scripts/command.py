@@ -35,6 +35,7 @@ q.start(7.5)
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Joy
 from geometry_msgs.msg import Vector3Stamped
+from std_msgs.msg import Float32
 
 
 x = 0.0
@@ -43,6 +44,7 @@ z = 0.0
 pub_freq = 25.0
 rospy.init_node('command', anonymous=False)
 rate = rospy.Rate(pub_freq)
+pub = rospy.Publisher('/pwm',Float32,queue_size=5)
 
 wheelbase=0.3
 print(wheelbase)
@@ -52,7 +54,7 @@ def callback(msg):
 	global old_x
 	x = msg.linear.x
 	z = msg.angular.z
-	print(x,z)
+#	print(x,z)
 	vit=0.5
 	x=x/np.cos(z)
 
@@ -67,23 +69,25 @@ def callback(msg):
 	    pwm=7.5
 	    q.ChangeDutyCycle(pwm)
 	    print('back')
-	    time.sleep(0.5)
+	    #time.sleep(0.5)
 	    q.ChangeDutyCycle(pwm)
-	    time.sleep(0.5)
+	    #time.sleep(0.5)
 	    q.ChangeDutyCycle(pwm)
-	    time.sleep(1.0)
+   #time.sleep(1.0)
 
 
 	elif (x<0):
-	    pwm=7.7-vit*x
+	    pwm=7.5-vit*x
 	old_x=x
-	print(pwm)
+#	print(z)
 	p.ChangeDutyCycle(5.2-z/0.30)
 	q.ChangeDutyCycle(pwm)
-
+	msg = Float32()     
+	msg.data = pwm
+	pub.publish(msg)
 	
 
-# 	rate.sleep()
+	#rate.sleep()
 
 def listener_and_pub():
 	rospy.Subscriber("/cmd_vel", Twist, callback) #/cmd_vel /key_vel /ps3_vel /joy

@@ -30,8 +30,11 @@
   
   <!-- Use libpointmatcher for ICP? (has effect only when hector:=false) -->
   <arg name="pm" default="true" />
+  
+  <arg name="sim" default="false"/>
+  
 
-  <param name="use_sim_time" type="bool" value="true"/>
+<param name="/use_sim_time" value="(arg sim)"/>
   
   <node if="$(arg hector)" pkg="tf" type="static_transform_publisher" name="scanmatcher_to_base_footprint" 
     args="0.0 0.0 0.0 0.0 0.0 0.0 /scanmatcher_frame /base_link 100" />

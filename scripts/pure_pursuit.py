@@ -29,7 +29,7 @@ from std_msgs.msg import Float64
 from geometry_msgs.msg import PointStamped, Twist, PoseWithCovarianceStamped
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from nav_msgs.msg import Path, Odometry
-from ens_voiture_autonome.msg import DS4
+# from ens_voiture_autonome.msg import DS4
 import tf
 
 
@@ -37,8 +37,8 @@ import tf
 
 k = 0.4  # Look forward gain (Dynamic look-ahead)
 look_ahead_dist = 0.6  # Look-ahead distance
-wheelbase_length = 0.28  # wheel base of vehicle [m]
-max_steering_angle = 0.44926 # rad
+wheelbase_length = 0.257  # wheel base of vehicle [m]
+max_steering_angle = 0.30 # rad
 vitesse_max=2
 
 #################################################
@@ -63,7 +63,7 @@ def pure_pursuit_control(state, course_x, course_y):
     # adapted from: https://github.com/AtsushiSakai/PythonRobotics/tree/master/PathTracking/pure_pursuit
 
     # Get waypoint target index
-    ind = calc_target_index(state, course_x, course_y)
+    ind, ind_car = calc_target_index(state, course_x, course_y)
 
     if ind < len(course_x):
         target_x = course_x[ind]
@@ -87,8 +87,10 @@ def pure_pursuit_control(state, course_x, course_y):
 
     # Cap max steering wheel angle
     delta = np.clip(delta, -max_steering_angle, max_steering_angle)
+    
+    speed = course_speed[ind_car]
 
-    return delta, ind
+    return speed, delta, ind
 
 
 def calc_target_index(state, course_x, course_y):
@@ -107,13 +109,14 @@ def calc_target_index(state, course_x, course_y):
     while distance < dyn_look_ahead_dist :
         ind += 1
         distance = d[ind%len(course_x)] 
+        
         if ind >len(course_x)*2:
             ind = ind_car
             print('too far away')
             break
           
-    print(dyn_look_ahead_dist,distance, ind)
-    return ind
+    
+    return ind%len(course_x), ind_car
 
 
 def update_state_callback(data):
@@ -133,6 +136,7 @@ def path_callback(data):
     
     global course_x
     global course_y
+    global course_speed
 
     path_x = []
     path_y = []
@@ -143,7 +147,7 @@ def path_callback(data):
 
     course_x = path_x
     course_y = path_y
-
+    course_speed = np.ones(len(course_x))
 
 def vel_callback(data):
 
@@ -155,8 +159,8 @@ def vel_callback(data):
 def odom_callback(data):
     
     global state
-    state.v = -data.twist.linear.x
-    print(state.v)
+    state.v = -data.twist.twist.linear.x
+    # print(state.v)
 
 
 def main():
@@ -175,7 +179,7 @@ def main():
     # Get current state of truck
     #rospy.Subscriber('pf/viz/inferred_pose', PoseStamped, update_state_callback, queue_size=10)
     rospy.Subscriber('amcl_pose', PoseWithCovarianceStamped, update_state_callback, queue_size=100)
-    #rospy.Subscriber('trajectory', Path, path_callback, queue_size=10)
+    rospy.Subscriber('trajectory', Path, path_callback, queue_size=10)
     # rospy.Subscriber('vel', Twist, vel_callback, queue_size=10)
     rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
 
@@ -186,17 +190,18 @@ def main():
 
         # Get steering angle
         if len(course_x) != 0:
-            steering_angle, target_ind = pure_pursuit_control(state, course_x, course_y)
+            speed, steering_angle, target_ind = pure_pursuit_control(state, course_x, course_y)
             if target_ind is not None:
                 tf_br.sendTransform((course_x[target_ind], course_y[target_ind], 0.0), quaternion_from_euler(0.0, 0.0, 3.1415), rospy.Time.now() , "look_ahead_point", "map")
         else:
             steering_angle = 0.0
             target_ind = 0
+            speed = 0
 
         # Publish steering msg
         msg = Twist()
         msg.angular.z = steering_angle
-        # msg.linear.x = state.v
+        msg.linear.x = speed
         pub.publish(msg)
 
         rate.sleep()
