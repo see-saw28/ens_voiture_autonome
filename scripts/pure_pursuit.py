@@ -25,13 +25,14 @@ import rospy
 import math
 import os 
 import numpy as np
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, String
 from geometry_msgs.msg import PointStamped, Twist, PoseWithCovarianceStamped
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from nav_msgs.msg import Path, Odometry
 # from ens_voiture_autonome.msg import DS4
 import tf
-
+import rospkg
+import pickle
 
 ### Tuning settings #############################
 
@@ -132,7 +133,7 @@ def update_state_callback(data):
     state.yaw = yaw
 
 
-def path_callback(data):
+def load_path_callback(msg):
     
     global course_x
     global course_y
@@ -140,14 +141,21 @@ def path_callback(data):
 
     path_x = []
     path_y = []
+    course_speed = []
+    msg=msg.data.split(" ")
+    if (msg[0]=="load" and len(msg)>1):
+       
+        f = open(rospack.get_path('ens_vision')+f'/paths/{msg[1]}.pckl', 'rb')
+        marker,speeds,orientations,cmd_speeds = pickle.load(f)
+        f.close()
+        for i, pose in enumerate(marker.points):
+            path_x.append(pose.position.x)
+            path_y.append(pose.position.y)
+            course_speed.append(cmd_speeds[i])
 
-    for i, pose in enumerate(data.poses):
-        path_x.append(data.poses[i].pose.position.x)
-        path_y.append(data.poses[i].pose.position.y)
-
-    course_x = path_x
-    course_y = path_y
-    course_speed = np.ones(len(course_x))
+        course_x = path_x
+        course_y = path_y
+        
 
 def vel_callback(data):
 
@@ -169,9 +177,7 @@ def main():
     global course_x
     global course_y
 
-    # init node
-    rospy.init_node('pure_pursuit')
-    rate = rospy.Rate(100) # hz
+    
 
     # Publish
     pub = rospy.Publisher('pure_pursuit_cmd', Twist, queue_size=100)
@@ -179,7 +185,7 @@ def main():
     # Get current state of truck
     #rospy.Subscriber('pf/viz/inferred_pose', PoseStamped, update_state_callback, queue_size=10)
     rospy.Subscriber('amcl_pose', PoseWithCovarianceStamped, update_state_callback, queue_size=100)
-    rospy.Subscriber('trajectory', Path, path_callback, queue_size=10)
+    rospy.Subscriber('syscommand', String, load_path_callback, queue_size=10)
     # rospy.Subscriber('vel', Twist, vel_callback, queue_size=10)
     rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
 
@@ -209,6 +215,10 @@ def main():
     
 if __name__ == '__main__':
     try:
+        # init node
+        rospy.init_node('pure_pursuit')
+        rate = rospy.Rate(100) # hz
+        rospack = rospkg.RosPack()
         main()
     except rospy.ROSInterruptException:
         pass
