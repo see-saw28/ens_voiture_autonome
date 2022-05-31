@@ -89,8 +89,9 @@ def pure_pursuit_control(state, course_x, course_y):
     # Cap max steering wheel angle
     delta = np.clip(delta, -max_steering_angle, max_steering_angle)
     
+  
     speed = course_speed[ind_car]
-
+    
     return speed, delta, ind
 
 
@@ -139,22 +140,25 @@ def load_path_callback(msg):
     global course_y
     global course_speed
 
-    path_x = []
-    path_y = []
-    course_speed = []
     msg=msg.data.split(" ")
     if (msg[0]=="load" and len(msg)>1):
+        path_x = []
+        path_y = []
+        course_speed = []
+        
+    
        
         f = open(rospack.get_path('ens_vision')+f'/paths/{msg[1]}.pckl', 'rb')
         marker,speeds,orientations,cmd_speeds = pickle.load(f)
         f.close()
         for i, pose in enumerate(marker.points):
-            path_x.append(pose.position.x)
-            path_y.append(pose.position.y)
+            path_x.append(pose.x)
+            path_y.append(pose.y)
             course_speed.append(cmd_speeds[i])
 
         course_x = path_x
         course_y = path_y
+        
         
 
 def vel_callback(data):
@@ -172,12 +176,7 @@ def odom_callback(data):
 
 
 def main():
-
-    global state
-    global course_x
-    global course_y
-
-    
+   
 
     # Publish
     pub = rospy.Publisher('pure_pursuit_cmd', Twist, queue_size=100)

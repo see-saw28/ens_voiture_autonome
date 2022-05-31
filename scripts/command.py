@@ -35,7 +35,7 @@ q.start(7.5)
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Joy
 from geometry_msgs.msg import Vector3Stamped
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32, Bool
 
 
 x = 0.0
@@ -85,9 +85,6 @@ def callback(msg):
 	msg = Float32()     
 	msg.data = pwm
 	pub.publish(msg)
-	
-
-	#rate.sleep()
 
 def listener_and_pub():
 	rospy.Subscriber("/cmd_vel", Twist, callback) #/cmd_vel /key_vel /ps3_vel /joy

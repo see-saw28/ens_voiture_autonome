@@ -24,7 +24,7 @@ import math
 import os 
 import numpy as np
 import rospy
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, String
 from geometry_msgs.msg import PointStamped
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import PoseWithCovarianceStamped
@@ -32,6 +32,8 @@ from tf.transformations import euler_from_quaternion, quaternion_from_euler
 # from ens_voiture_autonome.msg import DS4
 from nav_msgs.msg import Path, Odometry
 import tf
+import rospkg
+import pickle
 
 
 ### Tuning settings #################
@@ -47,7 +49,7 @@ vitesse_max=2
 course_x = []
 course_y = []
 course_yaw = []
-speeds = []
+course_speed = []
 
 class State:
 
@@ -78,7 +80,7 @@ def stanley_control(state, course_x, course_y, course_yaw):
     # Cap max steering wheel angle
     delta = np.clip(delta, -max_steering_angle, max_steering_angle)
     
-    speed = speeds[current_target_ind]
+    speed = course_speed[current_target_ind]
 
     return speed, delta, current_target_ind
 
@@ -133,14 +135,43 @@ def update_state_callback(data):
     _, _, yaw = euler_from_quaternion(orientation_list)
     state.yaw = yaw
 
+def load_path_callback(msg):
+    
+    global course_x
+    global course_y
+    global course_speed
+    global course_yaw
 
+    msg=msg.data.split(" ")
+    if (msg[0]=="load" and len(msg)>1):
+        path_x = []
+        path_y = []
+        path_yaw = []
+        course_speed = []
+        
+    
+       
+        f = open(rospack.get_path('ens_vision')+f'/paths/{msg[1]}.pckl', 'rb')
+        marker,speeds,orientations,cmd_speeds = pickle.load(f)
+        f.close()
+        for i, pose in enumerate(marker.points):
+            path_x.append(pose.x)
+            path_y.append(pose.y)
+            orientation_list = orientations[i]
+            _, _, yaw = euler_from_quaternion(orientation_list)
+            path_yaw.append(yaw)
+            course_speed.append(cmd_speeds[i])
+
+        course_x = path_x
+        course_y = path_y
+        course_yaw = path_yaw
 
 def path_callback(data):
     
     global course_x
     global course_y
     global course_yaw
-    global speeds
+    global course_speed
 
     path_x = []
     path_y = []
@@ -156,7 +187,7 @@ def path_callback(data):
     course_x = path_x
     course_y = path_y
     course_yaw = path_yaw
-    speeds = np.ones(len(course_x))
+    course_speed = np.ones(len(course_x))
 
 
 def vel_callback(data):
@@ -174,12 +205,6 @@ def odom_callback(data):
 
 
 def main():
-
-    global state
-    global course_x
-    global course_y
-    global course_yaw
-
     # init node
     rospy.init_node('stanley_controller')
     rate = rospy.Rate(10) # hz
@@ -189,7 +214,8 @@ def main():
 
     # Get current state of truck
     rospy.Subscriber('amcl_pose', PoseWithCovarianceStamped, update_state_callback, queue_size=10)
-    rospy.Subscriber('trajectory', Path, path_callback, queue_size=10)
+    # rospy.Subscriber('trajectory', Path, path_callback, queue_size=10)
+    rospy.Subscriber('syscommand', String, load_path_callback, queue_size=10)
     rospy.Subscriber('vel', Twist, vel_callback, queue_size=10)
     rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
 
@@ -218,6 +244,7 @@ def main():
     
 if __name__ == '__main__':
     try:
+        rospack = rospkg.RosPack()
         main()
     except rospy.ROSInterruptException:
         pass

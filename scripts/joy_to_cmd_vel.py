@@ -8,6 +8,7 @@ Created on Mon May 23 09:11:38 2022
 import rospy
 import os
 from ens_voiture_autonome.msg import DS4
+from std_msgs.msg import Bool
 from geometry_msgs.msg import Twist
 import numpy as np
 
@@ -33,6 +34,8 @@ SC_steering = 0
 speed_mode = 0
 driving_mode = 0
 
+aeb = False
+
 driving_mode_dict = {0:'MANUAL',1:'PURE PURSUIT',2:'STANLEY CONTROLLER'}
 speed_mode_dict = {0:'MANUAL',1:'CONSTANT',2:'GAUSSIAN', 3:'BINARY',4:'RECORDED'}
 
@@ -46,8 +49,12 @@ def callback(data):
     vx = -data.AXIS_RIGHT_STICK_Y*speed_max
     msg = Twist()
     
-    
-    if driving_mode == 0:
+    if aeb:
+        msg.linear.x = -3
+        msg.angular.z = 0
+        pub.publish(msg)
+        
+    elif driving_mode == 0:
        msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
        msg.angular.z = -data.AXIS_LEFT_STICK_X*steer_max
        pub.publish(msg)
@@ -164,11 +171,19 @@ def stanley_control_callback(data):
         
         if speed_mode != 0:
             pub.publish(msg)
+            
+def aeb_callback(data):
+    global aeb
+    if data.data and not aeb:
+        print('break')
+        
+    aeb = data.data
 
 def listener_and_pub():
     rospy.Subscriber("/DS4_input", DS4, callback)
     rospy.Subscriber("/pure_pursuit_cmd", Twist, pure_pursuit_callback)
     rospy.Subscriber("/stanley_control_cmd", Twist, stanley_control_callback)
+    rospy.Subscriber("/AEB", Bool, aeb_callback)
     rospy.spin()
 	
 if __name__ == '__main__':

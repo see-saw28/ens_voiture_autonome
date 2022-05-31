@@ -166,5 +166,6 @@
 
     <param name="voxel_size" type="double" value="0.01"/>
   </node>
+  <node pkg="topic_tools" type="relay" name="topic_tools" args="rtabmap/grid_map map"/>
 
 </launch>

@@ -189,7 +189,7 @@ Visualization Manager:
       Length: 1
       Name: Axes
       Radius: 0.10000000149011612
-      Reference Frame: map
+      Reference Frame: look_ahead_point
       Show Trail: false
       Value: true
     - Class: rviz/Marker
@@ -197,12 +197,12 @@ Visualization Manager:
       Marker Topic: /finish_line
       Name: Marker
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
       Enabled: true
-      Marker Topic: /lap_9_marker
+      Marker Topic: /trajectory_loaded
       Name: Marker
       Namespaces:
         {}
