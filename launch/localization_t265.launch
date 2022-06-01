@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+
+<launch>
+
+  <arg name="map" />
+  <arg name="sim" default="false"/>
+  
+  <param name="/use_sim_time" value="$(arg sim)"/>
+  
+  <node pkg="tf" type="static_transform_publisher" name="base_link_to_laser"  args="0.25 0 0 3.1415 0 0 base_link laser 10" />
+	
+<node pkg="tf" type="static_transform_publisher" name="base_link_to_t265"  args="0 0 0 3.1415 0 0  camera_pose_frame base_link 5" />
+
+
+  
+
+  <node name="map_server" pkg="map_server" type="map_server" args="$(find ens_voiture_autonome)/map/$(arg map).yaml" />
+
+  
+
+
+
+ 
+
+  <include file="$(find ens_voiture_autonome)/launch/amcl.launch">
+  <arg name="odom_frame" value="camera_odom_frame"/>
+    </include>
+
+</launch>

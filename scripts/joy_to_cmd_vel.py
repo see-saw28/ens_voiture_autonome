@@ -31,12 +31,14 @@ PP_steering = 0
 SC_speed = 0
 SC_steering = 0
 
+MB_STEERING = 0
+
 speed_mode = 0
 driving_mode = 0
 
 aeb = False
 
-driving_mode_dict = {0:'MANUAL',1:'PURE PURSUIT',2:'STANLEY CONTROLLER'}
+driving_mode_dict = {0:'MANUAL',1:'PURE PURSUIT',2:'STANLEY CONTROLLER',3:'MOVE BASE'}
 speed_mode_dict = {0:'MANUAL',1:'CONSTANT',2:'GAUSSIAN', 3:'BINARY',4:'RECORDED'}
 
 print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
@@ -76,6 +78,13 @@ def callback(data):
         # if msg.linear.x < 0:
         #     msg.angular.z = -SC_steering
         pub.publish(msg)    
+		
+    elif driving_mode == 3 and speed_mode == 0 :
+        
+        
+        msg.angular.z = MB_STEERING
+        msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
+        pub.publish(msg) 
     
        
     
@@ -89,7 +98,7 @@ def callback(data):
         print(f'vitesse max :{speed_max} m/s')
         
     if (data.HAT_X == 1 and data.RE_HAT_X):
-        driving_mode = min(driving_mode+1, 2)
+        driving_mode = min(driving_mode+1, 3)
         print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
         
     elif (data.HAT_X == -1 and data.RE_HAT_X):
@@ -178,11 +187,21 @@ def aeb_callback(data):
         print('break')
         
     aeb = data.data
+	
+def move_base_callback(data):
+	global MB_STEERING
+	
+	MB_STEERING = data.angular.z
+	
+	if driving_mode == 3 :
+		if speed_mode != 0:
+			pub.publish(data)
 
 def listener_and_pub():
     rospy.Subscriber("/DS4_input", DS4, callback)
     rospy.Subscriber("/pure_pursuit_cmd", Twist, pure_pursuit_callback)
     rospy.Subscriber("/stanley_control_cmd", Twist, stanley_control_callback)
+    rospy.Subscriber("/move_base_cmd", Twist, move_base_callback)
     rospy.Subscriber("/AEB", Bool, aeb_callback)
     rospy.spin()
 	

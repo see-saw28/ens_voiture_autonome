@@ -148,6 +148,7 @@
       <param name="frame_id"            type="string" value="base_footprint"/>
     
       <remap from="scan"            to="/scan"/>
+      
 
       <!-- As hector doesn't provide compatible covariance in the odometry topic -->
       <param if="$(arg hector)" name="odom_frame_id" type="string" value="hector_map"/>
