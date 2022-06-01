@@ -7,11 +7,14 @@ Created on Mon May 23 09:11:38 2022
 """
 import rospy
 import os
+import time
 from ens_voiture_autonome.msg import DS4
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Float32
 from geometry_msgs.msg import Twist
+from nav_msgs.msg import Odometry
 import numpy as np
-
+from dynamic_reconfigure.server import Server
+from ens_voiture_autonome.cfg import ControllerConfig
 
 
 
@@ -37,6 +40,10 @@ speed_mode = 0
 driving_mode = 0
 
 aeb = False
+breaking = False
+breaking_time = 0
+
+velocity_mes = 0
 
 driving_mode_dict = {0:'MANUAL',1:'PURE PURSUIT',2:'STANLEY CONTROLLER',3:'MOVE BASE'}
 speed_mode_dict = {0:'MANUAL',1:'CONSTANT',2:'GAUSSIAN', 3:'BINARY',4:'RECORDED'}
@@ -47,25 +54,35 @@ def callback(data):
     global speed_max
     global driving_mode
     global speed_mode
+    global breaking
     
-    vx = -data.AXIS_RIGHT_STICK_Y*speed_max
+    
     msg = Twist()
     
-    if aeb:
+    if breaking and time.time()-breaking_time < 1.0:
         msg.linear.x = -3
         msg.angular.z = 0
         pub.publish(msg)
         
+    elif breaking and time.time()-breaking_time > 1.0:
+        breaking = False
+        
     elif driving_mode == 0:
-       msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
-       msg.angular.z = -data.AXIS_LEFT_STICK_X*steer_max
-       pub.publish(msg)
+        if data.BUTTON_SQUARE :
+            msg.linear.x = speed_max
+        else :
+            msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
+        msg.angular.z = -data.AXIS_LEFT_STICK_X*steer_max
+        pub.publish(msg)
        
     elif driving_mode == 1 and speed_mode == 0 :
         
         
         msg.angular.z = PP_steering
-        msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
+        if data.BUTTON_SQUARE :
+            msg.linear.x = speed_max
+        else :
+            msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
         pub.publish(msg)   
        
             
@@ -120,17 +137,28 @@ def callback(data):
 def pure_pursuit_callback(data):
     global PP_steering
     global PP_speed
+    global breaking
     
     PP_speed = data.linear.x
     PP_steering = data.angular.z
     
     msg = Twist()
     
+    
+    
     if driving_mode == 1 :
         
         msg.angular.z = PP_steering
             
-        if speed_mode == 1:
+        if breaking and time.time()-breaking_time < 1.0:
+            msg.linear.x = -3
+            # msg.angular.z = 0
+            pub.publish(msg)
+            
+        elif breaking and time.time()-breaking_time > 1.0:
+            breaking = False
+        
+        elif speed_mode == 1:
             msg.linear.x = speed_max
             
         elif speed_mode == 2:
@@ -183,8 +211,15 @@ def stanley_control_callback(data):
             
 def aeb_callback(data):
     global aeb
+    global breaking
+    global breaking_time
+    
     if data.data and not aeb:
         print('break')
+        breaking = True
+        breaking_time = time.time()
+        
+    
         
     aeb = data.data
 	
@@ -196,13 +231,40 @@ def move_base_callback(data):
 	if driving_mode == 3 :
 		if speed_mode != 0:
 			pub.publish(data)
+            
+            
+def odom_callback(data):
+    
+    global velocity_mes
+    
+    velocity_mes = -data.twist.twist.linear.x
+    msg = Float32()
+    msg.data = velocity_mes
+    pub_vel.publish(msg)
+    
+def server_callback(config, level):
+    global corner_speed_coef
+    global binary_steering_threshold
+    global sigma2 
+            
+    corner_speed_coef = config['corner_speed_coef']
+    sigma2 = -steer_max**2/np.log(corner_speed_coef)
+    binary_steering_threshold = config['binary_steering_threshold']
+    
+    
+    return config
 
 def listener_and_pub():
+    global pub_vel
+    
     rospy.Subscriber("/DS4_input", DS4, callback)
     rospy.Subscriber("/pure_pursuit_cmd", Twist, pure_pursuit_callback)
     rospy.Subscriber("/stanley_control_cmd", Twist, stanley_control_callback)
     rospy.Subscriber("/move_base_cmd", Twist, move_base_callback)
     rospy.Subscriber("/AEB", Bool, aeb_callback)
+    rospy.Subscriber("/camera/odom/sample", Odometry, odom_callback)
+    srv = Server(ControllerConfig, server_callback)
+    pub_vel = rospy.Publisher('/vel',Float32,queue_size=5)
     rospy.spin()
 	
 if __name__ == '__main__':

@@ -39,9 +39,10 @@ import pickle
 ### Tuning settings #################
 
 k = 0.1  # Cross track error gain
+k_soft = 0.5
+k_steer = 0.5
 wheelbase_length = 0.257  # [m]
 max_steering_angle = 0.30 # [rad]
-vitesse_max=2
 
 #####################################
 
@@ -50,6 +51,8 @@ course_x = []
 course_y = []
 course_yaw = []
 course_speed = []
+
+old_steer = 0
 
 class State:
 
@@ -65,6 +68,12 @@ state = State(x=0.0, y=0.0, yaw=0.0, v=0.0)
 
 def stanley_control(state, course_x, course_y, course_yaw):
     # adapted from: https://github.com/AtsushiSakai/PythonRobotics/tree/master/PathTracking/stanley_controller
+    
+    global old_steer
+    
+    k = rospy.get_param('joy_to_cmd_vel/k_sc')
+    k_steer = rospy.get_param('joy_to_cmd_vel/k_steer')
+    k_soft = rospy.get_param('joy_to_cmd_vel/k_soft')
 
     current_target_ind, error_front_axle = calc_target_index(state, course_x, course_y)
 
@@ -72,13 +81,18 @@ def stanley_control(state, course_x, course_y, course_yaw):
     theta_e = normalize_angle(course_yaw[current_target_ind] - state.yaw)
     
     # theta_d corrects the cross track error
-    theta_d = np.arctan2(k * error_front_axle, state.v)
+    theta_d = np.arctan2(k * error_front_axle, state.v + k_soft)
     
     # Steering control
     delta = theta_e + theta_d
+    
+    # Add stability
+    delta += k_steer*(delta - old_steer)
 
     # Cap max steering wheel angle
     delta = np.clip(delta, -max_steering_angle, max_steering_angle)
+    
+    old_steer = delta
     
     speed = course_speed[current_target_ind]
 
@@ -200,6 +214,7 @@ def vel_callback(data):
 def odom_callback(data):
     
     global state
+    
     state.v = -data.twist.twist.linear.x
     # print(state.v)
 

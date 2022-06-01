@@ -12,8 +12,8 @@ from std_msgs.msg import Bool
 import numpy as np
 from nav_msgs.msg import Path, Odometry
 
-aeb_distance = 0.5
-TTC_threshold = 0.7
+aeb_distance = 0.7
+TTC_threshold = 0.6
 
 wb = 0.257
 alpha = 0
@@ -24,7 +24,7 @@ velocity = 0.0
 def cmd_callback(data):
     global alpha
     steer = data.angular.z
-    
+    aeb_distance = rospy.get_param('joy_to_cmd_vel/aeb_distance')
     alpha = np.arcsin(aeb_distance*np.tan(steer)/(2*wb))
     
 def odom_callback(data):
@@ -55,6 +55,7 @@ def lidar_callback(data):
     ranges = data.ranges
     # print(angle_min, angle_max)
     laser_number = int(alpha/angle_increment)
+    TTC_threshold = rospy.get_param('joy_to_cmd_vel/TTC_threshold')
     
         
     # print(ranges[laser_number],alpha,laser_number)

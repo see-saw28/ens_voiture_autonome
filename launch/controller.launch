@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+    <node pkg="ens_voiture_autonome" name="pure_pursuit" type="pure_pursuit.py" output="screen" />
+    <node pkg="ens_voiture_autonome" name="stanley_controller" type="stanley_control.py" output="screen" />
+    
+</launch>
+

@@ -64,19 +64,25 @@ def odom_callback(data):
     
     global velocity_mes
     velocity_mes = -data.twist.twist.linear.x
+    msg = Float32()
+    msg.data = velocity_mes
+    pub_vel.publish(msg)
+	
 
 def asservissement():
+	global pub_vel
 	error_integral = 0
 	old_error = 0
 	
-	Kp = 1
-	Ki = 0.1
-	Kd = 0.01
+	Kp = 3
+	Ki = 1
+	Kd = 1
         
 	
 	rospy.init_node('command', anonymous=False)
 
 	pub = rospy.Publisher('/pwm',Float32,queue_size=5)
+	pub_vel = rospy.Publisher('/vel',Float32,queue_size=5)
 	rospy.Subscriber("/cmd_vel", Twist, callback) #/cmd_vel /key_vel /ps3_vel /joy
 	rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
 	
@@ -102,7 +108,7 @@ def asservissement():
 			
 
 			if (speed>=0 and speed<2.4):
-			    pwm=6.95-(0.1569*speed + 0.0032)
+			    pwm=6.99-(0.1569*speed + 0.0032)
 		#	elif (x<1.4): 
 
 		#	    pwm=6.95-(0.1569*1.4+0.0032)

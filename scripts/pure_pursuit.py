@@ -98,6 +98,8 @@ def pure_pursuit_control(state, course_x, course_y):
 def calc_target_index(state, course_x, course_y):
     # adapted from: https://github.com/AtsushiSakai/PythonRobotics/tree/master/PathTracking/pure_pursuit
 
+    k = rospy.get_param('joy_to_cmd_vel/k_pp')
+    look_ahead_dist = rospy.get_param('joy_to_cmd_vel/look_ahead_dist')
 
     dyn_look_ahead_dist = k * state.v + look_ahead_dist
     # search nearest point index
@@ -218,6 +220,7 @@ if __name__ == '__main__':
         rospy.init_node('pure_pursuit')
         rate = rospy.Rate(100) # hz
         rospack = rospkg.RosPack()
+       
         main()
     except rospy.ROSInterruptException:
         pass
