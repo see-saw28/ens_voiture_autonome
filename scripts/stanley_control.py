@@ -20,17 +20,17 @@ Created on Tue May 24 09:24:04 2022
 ****************************************************
 '''
 
+import rospy
 import math
 import os 
 import numpy as np
-import rospy
 from std_msgs.msg import Float64, String
-from geometry_msgs.msg import PointStamped
-from geometry_msgs.msg import Twist
-from geometry_msgs.msg import PoseWithCovarianceStamped
+from geometry_msgs.msg import PointStamped, Twist, PoseWithCovarianceStamped, Pose, Point, Vector3, Quaternion
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
-# from ens_voiture_autonome.msg import DS4
 from nav_msgs.msg import Path, Odometry
+from visualization_msgs.msg import Marker
+from std_msgs.msg import Header, ColorRGBA, String
+# from ens_voiture_autonome.msg import DS4
 import tf
 import rospkg
 import pickle
@@ -218,6 +218,16 @@ def odom_callback(data):
     state.v = -data.twist.twist.linear.x
     # print(state.v)
 
+def publish_marker(pub, x, y):
+    marker = Marker()     
+    marker.header=Header(frame_id='map')
+    marker.type=Marker.SPHERE
+    marker.scale=Vector3(0.2, 0.2, 0.2)
+    marker.pose=Pose(Point(x,y,0), Quaternion(0,0,0,1))
+    marker.color = ColorRGBA(1,0,1,1)
+    marker.lifetime = rospy.Duration(100)
+    
+    pub.publish(marker)
 
 def main():
     # init node
@@ -234,15 +244,14 @@ def main():
     rospy.Subscriber('vel', Twist, vel_callback, queue_size=10)
     rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
 
-    # Start a TF broadcaster
-    tf_br = tf.TransformBroadcaster()
+    pub_marker = rospy.Publisher('stanley_controller_look_ahead', Marker, queue_size=10)
     
     while not rospy.is_shutdown():
 
         # Get steering angle
         if len(course_x) != 0:
             speed, steering_angle, target_ind = stanley_control(state, course_x, course_y, course_yaw)
-            tf_br.sendTransform((course_x[target_ind], course_y[target_ind], 0.0), quaternion_from_euler(0.0, 0.0, course_yaw[target_ind]), rospy.Time.now() , "look_ahead_point2", "map")
+            publish_marker(pub_marker, course_x[target_ind], course_y[target_ind])
         else:
             steering_angle = 0.0
             target_ind = 0

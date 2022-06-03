@@ -41,11 +41,12 @@ driving_mode = 0
 
 aeb = False
 breaking = False
+aeb_count = 0
 breaking_time = 0
 
 velocity_mes = 0
 
-driving_mode_dict = {0:'MANUAL',1:'PURE PURSUIT',2:'STANLEY CONTROLLER',3:'MOVE BASE'}
+driving_mode_dict = {0:'MANUAL',1:'PURE PURSUIT',2:'STANLEY CONTROLLER',3:'MOVE BASE',4:'DWA'}
 speed_mode_dict = {0:'MANUAL',1:'CONSTANT',2:'GAUSSIAN', 3:'BINARY',4:'RECORDED'}
 
 print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
@@ -57,15 +58,27 @@ def callback(data):
     global breaking
     
     
+    if data.RE_SHARE :
+        driving_mode = 0
+        speed_mode =0
+        print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
+    
     msg = Twist()
     
-    if breaking and time.time()-breaking_time < 1.0:
+    
+    
+    if breaking and time.time()-breaking_time < 0.5:
         msg.linear.x = -3
         msg.angular.z = 0
         pub.publish(msg)
         
-    elif breaking and time.time()-breaking_time > 1.0:
+    elif breaking and time.time()-breaking_time > 0.5:
         breaking = False
+        
+    elif aeb :
+        msg.linear.x = -3
+        msg.angular.z = 0
+        pub.publish(msg)
         
     elif driving_mode == 0:
         if data.BUTTON_SQUARE :
@@ -102,6 +115,14 @@ def callback(data):
         msg.angular.z = MB_STEERING
         msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
         pub.publish(msg) 
+        
+    elif driving_mode == 4 and speed_mode == 0 :
+        
+        
+        msg.angular.z = DWA_steering
+        msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
+        pub.publish(msg) 
+    
     
        
     
@@ -115,7 +136,7 @@ def callback(data):
         print(f'vitesse max :{speed_max} m/s')
         
     if (data.HAT_X == 1 and data.RE_HAT_X):
-        driving_mode = min(driving_mode+1, 3)
+        driving_mode = min(driving_mode+1, len(driving_mode_dict)-1)
         print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
         
     elif (data.HAT_X == -1 and data.RE_HAT_X):
@@ -213,11 +234,22 @@ def aeb_callback(data):
     global aeb
     global breaking
     global breaking_time
+    global aeb_count
     
-    if data.data and not aeb:
-        print('break')
+    aeb_count_threshold = 3
+    
+    if data.data and aeb_count <aeb_count_threshold:
+        
+        aeb_count+=1
+        print(aeb_count)
+        
+    elif data.data and aeb_count >=aeb_count_threshold:
         breaking = True
+        print('emergency break')
         breaking_time = time.time()
+        
+    else :
+        aeb_count = 0
         
     
         
@@ -232,7 +264,50 @@ def move_base_callback(data):
 		if speed_mode != 0:
 			pub.publish(data)
             
+   
+def dwa_callback(data):
+    global DWA_steering
+    global DWA_speed
+    global breaking
+    
+    DWA_speed = data.linear.x
+    DWA_steering = data.angular.z
+    
+    msg = Twist()
+    
+    
+    
+    if driving_mode == 4 :
+        
+        msg.angular.z = DWA_steering
             
+        if breaking and time.time()-breaking_time < 1.0:
+            msg.linear.x = -3
+            # msg.angular.z = 0
+            pub.publish(msg)
+            
+        elif breaking and time.time()-breaking_time > 1.0:
+            breaking = False
+        
+        elif speed_mode == 1:
+            msg.linear.x = speed_max
+            
+        elif speed_mode == 2:
+            msg.linear.x = speed_max*np.exp(-DWA_steering**2/sigma2)
+            
+        elif speed_mode == 3:
+            if abs(DWA_steering)>binary_steering_threshold:
+                msg.linear.x = speed_max*corner_speed_coef
+                
+            else:
+                msg.linear.x = speed_max
+                
+        elif speed_mode == 4:
+            msg.linear.x = DWA_speed
+        
+        if speed_mode != 0:
+            pub.publish(msg)            
+
 def odom_callback(data):
     
     global velocity_mes
@@ -261,6 +336,7 @@ def listener_and_pub():
     rospy.Subscriber("/pure_pursuit_cmd", Twist, pure_pursuit_callback)
     rospy.Subscriber("/stanley_control_cmd", Twist, stanley_control_callback)
     rospy.Subscriber("/move_base_cmd", Twist, move_base_callback)
+    rospy.Subscriber("/dwa_cmd", Twist, dwa_callback)
     rospy.Subscriber("/AEB", Bool, aeb_callback)
     rospy.Subscriber("/camera/odom/sample", Odometry, odom_callback)
     srv = Server(ControllerConfig, server_callback)

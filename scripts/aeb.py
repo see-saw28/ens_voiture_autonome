@@ -17,14 +17,17 @@ TTC_threshold = 0.6
 
 wb = 0.257
 alpha = 0
-velocity = 0.0
+velocity = 0.1
 
 
     
 def cmd_callback(data):
     global alpha
     steer = data.angular.z
-    aeb_distance = rospy.get_param('joy_to_cmd_vel/aeb_distance')
+    try:
+        aeb_distance = rospy.get_param('joy_to_cmd_vel/aeb_distance')
+    except:
+        aeb_distance = 0.7
     alpha = np.arcsin(aeb_distance*np.tan(steer)/(2*wb))
     
 def odom_callback(data):
@@ -55,12 +58,16 @@ def lidar_callback(data):
     ranges = data.ranges
     # print(angle_min, angle_max)
     laser_number = int(alpha/angle_increment)
-    TTC_threshold = rospy.get_param('joy_to_cmd_vel/TTC_threshold')
+    try :
+        TTC_threshold = rospy.get_param('joy_to_cmd_vel/TTC_threshold')
+    except:
+        TTC_threshold = 0.6
     
+
         
     # print(ranges[laser_number],alpha,laser_number)
     b = Bool()
-    TTC = ranges[laser_number]/velocity
+    TTC = (ranges[laser_number]-0.1)/velocity
     # print(TTC)
     if TTC<TTC_threshold and TTC >0:
         print('break',TTC)
