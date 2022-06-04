@@ -46,10 +46,41 @@ breaking_time = 0
 
 velocity_mes = 0
 
-driving_mode_dict = {0:'MANUAL',1:'PURE PURSUIT',2:'STANLEY CONTROLLER',3:'MOVE BASE',4:'DWA'}
-speed_mode_dict = {0:'MANUAL',1:'CONSTANT',2:'GAUSSIAN', 3:'BINARY',4:'RECORDED'}
+driving_mode_dict = {0:'MANUAL',1:'PURE PURSUIT',2:'STANLEY CONTROLLER',3:'MOVE BASE',4:'DWA',5:'FOLLOW THE GAP'}
+speed_mode_dict = {0:'MANUAL',1:'CONSTANT',2:'GAUSSIAN', 3:'BINARY',4:'LINEAR',5:'RECORDED'}
 
 print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
+
+def get_velocity(steering):
+    global breaking
+        
+    if breaking and time.time()-breaking_time < 0.5:
+        velocity = -3
+        
+        
+    elif breaking and time.time()-breaking_time > 0.5:
+        breaking = False
+        
+    elif aeb :
+        velocity = -3
+    
+    elif speed_mode == 1:
+        velocity = speed_max
+        
+    elif speed_mode == 2:
+        velocity = speed_max*np.exp(-steering**2/sigma2)
+        
+    elif speed_mode == 3:
+        if abs(steering)>binary_steering_threshold:
+            velocity = speed_max*corner_speed_coef
+            
+        else:
+            velocity = speed_max
+            
+    elif speed_mode == 4:
+        velocity = speed_max - (1 - corner_speed_coef)* speed_max / steer_max * steering
+    
+    return velocity
 
 def callback(data):
     global speed_max
@@ -111,17 +142,21 @@ def callback(data):
 		
     elif driving_mode == 3 and speed_mode == 0 :
         
-        
-        msg.angular.z = MB_STEERING
+        msg.angular.z = MB_steering
         msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
         pub.publish(msg) 
         
     elif driving_mode == 4 and speed_mode == 0 :
         
-        
         msg.angular.z = DWA_steering
         msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
         pub.publish(msg) 
+        
+    elif driving_mode == 5 and speed_mode == 0 :
+        
+        msg.angular.z = FTG_steering
+        msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
+        pub.publish(msg)
     
     
        
@@ -144,7 +179,7 @@ def callback(data):
         print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
         
     if (data.HAT_Y == 1 and data.RE_HAT_Y):
-        speed_mode = min(speed_mode+1, 4)
+        speed_mode = min(speed_mode+1, len(speed_mode_dict)-1)
         print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
         
     elif (data.HAT_Y == -1 and data.RE_HAT_Y):
@@ -157,42 +192,19 @@ def callback(data):
     
 def pure_pursuit_callback(data):
     global PP_steering
-    global PP_speed
-    global breaking
     
     PP_speed = data.linear.x
     PP_steering = data.angular.z
     
     msg = Twist()
-    
-    
-    
+
     if driving_mode == 1 :
         
         msg.angular.z = PP_steering
-            
-        if breaking and time.time()-breaking_time < 1.0:
-            msg.linear.x = -3
-            # msg.angular.z = 0
-            pub.publish(msg)
-            
-        elif breaking and time.time()-breaking_time > 1.0:
-            breaking = False
         
-        elif speed_mode == 1:
-            msg.linear.x = speed_max
-            
-        elif speed_mode == 2:
-            msg.linear.x = speed_max*np.exp(-PP_steering**2/sigma2)
-            
-        elif speed_mode == 3:
-            if abs(PP_steering)>binary_steering_threshold:
-                msg.linear.x = speed_max*corner_speed_coef
-                
-            else:
-                msg.linear.x = speed_max
-                
-        elif speed_mode == 4:
+        if speed_mode<5:
+            msg.linear.x = get_velocity(PP_steering)
+        else:
             msg.linear.x = PP_speed
         
         if speed_mode != 0:
@@ -200,7 +212,6 @@ def pure_pursuit_callback(data):
     
 def stanley_control_callback(data):
     global SC_steering
-    global SC_speed
     
     SC_speed = data.linear.x
     SC_steering = data.angular.z
@@ -210,21 +221,10 @@ def stanley_control_callback(data):
     if driving_mode == 2 :
         
         msg.angular.z = SC_steering
-            
-        if speed_mode == 1:
-            msg.linear.x = speed_max
-            
-        elif speed_mode == 2:
-            msg.linear.x = speed_max*np.exp(-SC_steering**2/sigma2)
-            
-        elif speed_mode == 3:
-            if abs(PP_steering)>binary_steering_threshold:
-                msg.linear.x = speed_max*corner_speed_coef
-                
-            else:
-                msg.linear.x = speed_max
-                
-        elif speed_mode == 4:
+
+        if speed_mode<5:
+            msg.linear.x = get_velocity(SC_steering)
+        else:
             msg.linear.x = SC_speed
         
         if speed_mode != 0:
@@ -256,9 +256,9 @@ def aeb_callback(data):
     aeb = data.data
 	
 def move_base_callback(data):
-	global MB_STEERING
+	global MB_steering
 	
-	MB_STEERING = data.angular.z
+	MB_steering = data.angular.z
 	
 	if driving_mode == 3 :
 		if speed_mode != 0:
@@ -267,55 +267,53 @@ def move_base_callback(data):
    
 def dwa_callback(data):
     global DWA_steering
-    global DWA_speed
-    global breaking
-    
+
     DWA_speed = data.linear.x
     DWA_steering = data.angular.z
     
     msg = Twist()
     
-    
-    
     if driving_mode == 4 :
         
         msg.angular.z = DWA_steering
-            
-        if breaking and time.time()-breaking_time < 1.0:
-            msg.linear.x = -3
-            # msg.angular.z = 0
-            pub.publish(msg)
-            
-        elif breaking and time.time()-breaking_time > 1.0:
-            breaking = False
-        
-        elif speed_mode == 1:
-            msg.linear.x = speed_max
-            
-        elif speed_mode == 2:
-            msg.linear.x = speed_max*np.exp(-DWA_steering**2/sigma2)
-            
-        elif speed_mode == 3:
-            if abs(DWA_steering)>binary_steering_threshold:
-                msg.linear.x = speed_max*corner_speed_coef
-                
-            else:
-                msg.linear.x = speed_max
-                
-        elif speed_mode == 4:
+
+        if speed_mode<5:
+            msg.linear.x = get_velocity(DWA_steering)
+        else:
             msg.linear.x = DWA_speed
         
         if speed_mode != 0:
-            pub.publish(msg)            
+            pub.publish(msg)   
+            
+def follow_the_gap_callback(data):
+    global FTG_steering
+    
+    FTG_speed = data.linear.x
+    FTG_steering = data.angular.z
+    
+    msg = Twist()
+    
+    if driving_mode == 5 :
+        
+        msg.angular.z = FTG_steering
+
+        if speed_mode<5:
+            msg.linear.x = get_velocity(FTG_steering)
+        else:
+            msg.linear.x = FTG_speed
+        
+        if speed_mode != 0:
+            pub.publish(msg)
 
 def odom_callback(data):
     
     global velocity_mes
+
     
     velocity_mes = -data.twist.twist.linear.x
     msg = Float32()
     msg.data = velocity_mes
-    pub_vel.publish(msg)
+    # pub_vel.publish(msg)
     
 def server_callback(config, level):
     global corner_speed_coef
@@ -337,6 +335,7 @@ def listener_and_pub():
     rospy.Subscriber("/stanley_control_cmd", Twist, stanley_control_callback)
     rospy.Subscriber("/move_base_cmd", Twist, move_base_callback)
     rospy.Subscriber("/dwa_cmd", Twist, dwa_callback)
+    rospy.Subscriber("/follow_the_gap_cmd", Twist, dwa_callback)
     rospy.Subscriber("/AEB", Bool, aeb_callback)
     rospy.Subscriber("/camera/odom/sample", Odometry, odom_callback)
     srv = Server(ControllerConfig, server_callback)

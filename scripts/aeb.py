@@ -7,10 +7,13 @@ Created on Tue May 31 10:37:32 2022
 """
 import rospy
 from sensor_msgs.msg import LaserScan
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, Pose, Point, Vector3, Quaternion, PoseStamped
 from std_msgs.msg import Bool
 import numpy as np
 from nav_msgs.msg import Path, Odometry
+from visualization_msgs.msg import Marker
+from std_msgs.msg import Header, ColorRGBA, String
+from tf.transformations import quaternion_from_euler
 
 aeb_distance = 0.7
 TTC_threshold = 0.6
@@ -38,6 +41,7 @@ def odom_callback(data):
 def main():
 
     global pub
+    global pub_marker
 
     # init node
     rospy.init_node('lidar')
@@ -47,10 +51,27 @@ def main():
     rospy.Subscriber('scan', LaserScan, lidar_callback, queue_size=10)
     rospy.Subscriber('cmd_vel', Twist, cmd_callback, queue_size=10)
     rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
+    pub_marker = rospy.Publisher('aeb_marker', Marker, queue_size=10)
     
     rospy.spin()
+    
+def publish_marker(pub, x, y, theta, collide=False):
+    marker = Marker()     
+    marker.header=Header(frame_id='laser')
+    marker.type=Marker.CUBE
+    marker.scale=Vector3(0.2, 0.2, 0.2)
+    a,b,c,d = quaternion_from_euler(0,0,theta)
+    marker.pose=Pose(Point(x,y,0), Quaternion(a,b,c,d))
+    if collide :
+        marker.color = ColorRGBA(1,0,0,1)
+    else :
+        marker.color = ColorRGBA(0,1,0,1)
+    marker.lifetime = rospy.Duration(100)
+    
+    pub.publish(marker)
 
 def lidar_callback(data):
+    global pub_marker
     
     angle_min = data.angle_min
     angle_max = data.angle_max
@@ -74,6 +95,10 @@ def lidar_callback(data):
         b.data = True
     else :
         b.data = False
+        
+    x = -ranges[laser_number]*np.cos(alpha)
+    y = -ranges[laser_number]*np.sin(alpha)
+    publish_marker(pub_marker, x, y, alpha, collide=b.data )
         
     pub.publish(b)
         
