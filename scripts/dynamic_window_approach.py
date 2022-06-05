@@ -19,15 +19,18 @@ import rospy
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Bool,String
-from geometry_msgs.msg import Twist, PoseWithCovarianceStamped
+from geometry_msgs.msg import Twist, PoseWithCovarianceStamped, PoseStamped, Point, Vector3, Quaternion, Pose
 import numpy as np
 from nav_msgs.msg import Path, Odometry
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 import tf
 import pickle
 import rospkg
+from visualization_msgs.msg import Marker
+from std_msgs.msg import Header, ColorRGBA, String
 
-show_animation = True
+
+show_animation = False
 
 # Path point storage
 course_x = []
@@ -67,15 +70,16 @@ class Config:
 
     def __init__(self):
         # robot parameter
-        self.max_speed = 4.0  # [m/s]
-        self.min_speed = -0.5  # [m/s]
-        self.max_yaw_rate = 40.0 * math.pi / 180.0  # [rad/s]
-        self.max_accel = 0.2 # [m/ss]
+        self.max_speed = 3.0  # [m/s]
+        self.min_speed = -1.0  # [m/s]
+        self.max_yaw_rate = 140.0 * math.pi / 180.0  # [rad/s]
+        self.max_accel = 8.0 # [m/ss]
         self.max_steering_angle = 0.30 # [rad]
-        self.v_resolution = 0.05  # [m/s]
-        self.steering_resolution = 0.01  # [rad]
+        self.v_resolution = 0.3  # [m/s]
+        self.steering_resolution = 0.03  # [rad]
+        self.wheelbase = 0.257
         self.dt = 0.1  # [s] Time tick for motion prediction
-        self.predict_time = 2.0  # [s]
+        self.predict_time = 1.5  # [s]
         self.to_goal_cost_gain = 0.15
         self.speed_cost_gain = 1.0
         self.obstacle_cost_gain = 1.0
@@ -141,23 +145,19 @@ def calc_dynamic_window(x, config):
     """
 
     # Dynamic window from robot specification
-    Vs = [config.min_speed, config.max_speed,
-          -config.max_yaw_rate, config.max_yaw_rate]
+    Vs = [config.min_speed, config.max_speed]
 
     # Dynamic window from motion model
     Vd = [x[3] - config.max_accel * config.dt,
-          x[3] + config.max_accel * config.dt,
-          x[4] - config.max_delta_yaw_rate * config.dt,
-          x[4] + config.max_delta_yaw_rate * config.dt]
+          x[3] + config.max_accel * config.dt]
 
-    #  [v_min, v_max, yaw_rate_min, yaw_rate_max]
-    dw = [max(Vs[0], Vd[0]), min(Vs[1], Vd[1]),
-          max(Vs[2], Vd[2]), min(Vs[3], Vd[3])]
+    #  [v_min, v_max]
+    dw = [max(Vs[0], Vd[0]), min(Vs[1], Vd[1])]
 
     return dw
 
 
-def predict_trajectory(x_init, v, y, config):
+def predict_trajectory(x_init, v, steer, config):
     """
     predict trajectory with an input
     """
@@ -165,6 +165,8 @@ def predict_trajectory(x_init, v, y, config):
     x = np.array(x_init)
     trajectory = np.array(x)
     time = 0
+    # v = Rw et tan(steer) = Wb/R donc w = v/ R 
+    y = v*np.tan(steer)/config.wheelbase
     while time <= config.predict_time:
         x = motion(x, [v, y], config.dt)
         trajectory = np.vstack((trajectory, x))
@@ -185,28 +187,34 @@ def calc_control_and_trajectory(x, dw, config, goal, ob):
 
     # evaluate all trajectory with sampled input in dynamic window
     for v in np.arange(dw[0], dw[1], config.v_resolution):
-        for y in np.arange(dw[2], dw[3], config.yaw_rate_resolution):
-
-            trajectory = predict_trajectory(x_init, v, y, config)
-            # calc cost
-            to_goal_cost = config.to_goal_cost_gain * calc_to_goal_cost(trajectory, goal)
-            speed_cost = config.speed_cost_gain * (config.max_speed - trajectory[-1, 3])
-            ob_cost = config.obstacle_cost_gain * calc_obstacle_cost(trajectory, ob, config)
-
-            final_cost = to_goal_cost + speed_cost + ob_cost
-
-            # search minimum trajectory
-            if min_cost >= final_cost:
-                min_cost = final_cost
-                best_u = [v, y]
-                best_trajectory = trajectory
-                if abs(best_u[0]) < config.robot_stuck_flag_cons \
-                        and abs(x[3]) < config.robot_stuck_flag_cons:
-                    # to ensure the robot do not get stuck in
-                    # best v=0 m/s (in front of an obstacle) and
-                    # best omega=0 rad/s (heading to the goal with
-                    # angle difference of 0)
-                    best_u[1] = -config.max_delta_yaw_rate
+        for y in np.arange(-config.max_steering_angle, config.max_steering_angle, config.steering_resolution):
+            
+            yaw = v*np.tan(y)/config.wheelbase
+            
+            if abs(yaw)>config.max_yaw_rate :
+                final_cost = np.inf
+            else :
+                trajectory = predict_trajectory(x_init, v, y, config)
+                # calc cost
+                to_goal_cost = config.to_goal_cost_gain * calc_to_goal_cost(trajectory, goal)
+                speed_cost = config.speed_cost_gain * (config.max_speed - trajectory[-1, 3])
+                ob_cost = config.obstacle_cost_gain * calc_obstacle_cost(trajectory, ob, config)
+    
+                final_cost = to_goal_cost + speed_cost + ob_cost
+    
+                # search minimum trajectory
+                if min_cost >= final_cost:
+                    min_cost = final_cost
+                    best_u = [v, y]
+                    best_trajectory = trajectory
+                    if abs(best_u[0]) < config.robot_stuck_flag_cons \
+                            and abs(x[3]) < config.robot_stuck_flag_cons:
+                        # to ensure the robot do not get stuck in
+                        # best v=0 m/s (in front of an obstacle) and
+                        # best omega=0 rad/s (heading to the goal with
+                        # angle difference of 0)
+                        best_u[1] = -config.max_steering_angle
+                        
     return best_u, best_trajectory
 
 
@@ -395,7 +403,7 @@ def lidar_callback(data):
     for i,angle in enumerate(angles):
         xl=ranges[i]*np.cos(angle+np.pi)
         yl=ranges[i]*np.sin(angle+np.pi)
-        if i%3==0 and abs(xl)<15 and abs(yl)<15 and abs(angle)>np.pi/3:
+        if i%1==0 and abs(xl)<15 and abs(yl)<15 and abs(angle)>np.pi/3:
             xy.append([xl,yl])
             
         
@@ -403,9 +411,16 @@ def lidar_callback(data):
     
     # print(config.ob)
     
-def cmd_callback(data):
-    global steer
-    steer = data.angular.z
+def publish_marker(pub, x, y):
+    marker = Marker()     
+    marker.header=Header(frame_id='base_link')
+    marker.type=Marker.SPHERE
+    marker.scale=Vector3(0.1, 0.1, 0.1)
+    marker.pose=Pose(Point(x,y,0), Quaternion(0,0,0,1))
+    marker.color = ColorRGBA(0,1,0,1)
+    marker.lifetime = rospy.Duration(100)
+    
+    pub.publish(marker)
 
 def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
     print(__file__ + " start!!")
@@ -417,13 +432,16 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
     rate = rospy.Rate(100) # hz
     
     pub = rospy.Publisher('dwa_cmd', Twist, queue_size=100)
+    pub_path = rospy.Publisher('dwa_path', Path, queue_size=100)
     
     rospy.Subscriber('scan', LaserScan, lidar_callback, queue_size=10)
     
     rospy.Subscriber('amcl_pose', PoseWithCovarianceStamped, update_state_callback, queue_size=100)
     rospy.Subscriber('syscommand', String, load_path_callback, queue_size=10)
-    # rospy.Subscriber('vel', Twist, vel_callback, queue_size=10)
-    rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
+    
+    marker_pub = rospy.Publisher('dwa_look_ahead', Marker, queue_size=5)
+
+    # rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
 
     # Start a TF broadcaster
     tf_br = tf.TransformBroadcaster()
@@ -448,21 +466,33 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
         # print(ob)
         if len(course_x) != 0:
             goal = calc_goal_coord(state, course_x, course_y)
-            tf_br.sendTransform((goal[0], goal[1], 0.0), quaternion_from_euler(0.0, 0.0, 0.0), rospy.Time.now() , "dwa_point", "base_link")
+            publish_marker(marker_pub, goal[0], goal[1])
         u, predicted_trajectory = dwa_control(x_robot, config, goal, ob)
-        v,omega = u
-        if omega == 0 or v == 0:
-            steering_angle = 0
-        else :
-            radius = v / omega
-            steering_angle = math.atan(wheelbase / radius)
-        steering_angle = np.clip(steering_angle, -max_steering_angle, max_steering_angle)
-        print(v, steering_angle)
+        v,steer = u
+        x_robot[3] = u[0]
+        
+        # print(v, steer)
         
         msg = Twist()
-        msg.angular.z = steering_angle
+        msg.angular.z = steer
         msg.linear.x = v
         pub.publish(msg)
+        
+        msg_path = Path()
+        msg_path.header.frame_id = 'base_link'
+        
+        for i,traj in enumerate(predicted_trajectory) :
+            pose = PoseStamped()
+            
+            pose.header.frame_id = "base_link"
+            pose.header.seq = i
+            
+            pose.pose.position.x = traj[0]
+            pose.pose.position.y = traj[1]
+            
+            msg_path.poses.append(pose)
+            
+        pub_path.publish(msg_path)
         # x = motion(x, u, config.dt)  # simulate robot
         # trajectory = np.vstack((trajectory, x))  # store state history
 

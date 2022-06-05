@@ -77,7 +77,7 @@ class Config:
     def __init__(self):
         # robot parameter
         self.max_speed = 3.0  # [m/s]
-        self.min_speed = -1.5  # [m/s]
+        self.min_speed = 0.5  # [m/s]
         self.max_yaw_rate = 40.0 * math.pi / 180.0  # [rad/s]
         self.max_accel = 8.0 # [m/ss]
         self.max_delta_yaw_rate = 100 * math.pi / 180.0  # [rad/ss]
