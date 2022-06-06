@@ -3,4 +3,5 @@
     <node pkg="ens_voiture_autonome" name="ds4_controller" type="DS4_ROS.py" output="screen" />
     <node pkg="ens_voiture_autonome" name="joy_to_cmd_vel" type="joy_to_cmd_vel.py" output="screen" />
     <node pkg="ens_voiture_autonome" name="aeb" type="aeb.py" output="screen" />
+    
 </launch>

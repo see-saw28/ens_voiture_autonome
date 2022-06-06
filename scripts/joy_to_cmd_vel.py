@@ -46,7 +46,7 @@ breaking_time = 0
 
 velocity_mes = 0
 
-driving_mode_dict = {0:'MANUAL',1:'PURE PURSUIT',2:'STANLEY CONTROLLER',3:'MOVE BASE',4:'DWA',5:'FOLLOW THE GAP'}
+driving_mode_dict = {0:'MANUAL',1:'PURE PURSUIT',2:'STANLEY CONTROLLER',3:'MOVE BASE',4:'DWA',5:'FOLLOW THE GAP',6:'LOCAL STEERING CONTROLLER'}
 speed_mode_dict = {0:'MANUAL',1:'CONSTANT',2:'GAUSSIAN', 3:'BINARY',4:'LINEAR',5:'RECORDED'}
 
 print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
@@ -304,6 +304,27 @@ def follow_the_gap_callback(data):
         
         if speed_mode != 0:
             pub.publish(msg)
+            
+            
+def lsc_callback(data):
+    global LSC_steering
+
+    LSC_steering = data.angular.z
+    
+    msg = Twist()
+    
+    if driving_mode == 6 :
+        
+        msg.angular.z = LSC_steering
+
+        if speed_mode<5:
+            msg.linear.x = get_velocity(LSC_steering)
+        else:
+            msg.linear.x = 0
+            print('no speed return')
+        
+        if speed_mode != 0:
+            pub.publish(msg) 
 
 def odom_callback(data):
     
@@ -336,6 +357,7 @@ def listener_and_pub():
     rospy.Subscriber("/move_base_cmd", Twist, move_base_callback)
     rospy.Subscriber("/dwa_cmd", Twist, dwa_callback)
     rospy.Subscriber("/follow_the_gap_cmd", Twist, dwa_callback)
+    rospy.Subscriber("/local_steering_controller_cmd", Twist, lsc_callback)
     rospy.Subscriber("/AEB", Bool, aeb_callback)
     rospy.Subscriber("/camera/odom/sample", Odometry, odom_callback)
     srv = Server(ControllerConfig, server_callback)
