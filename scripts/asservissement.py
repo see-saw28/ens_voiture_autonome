@@ -96,6 +96,10 @@ def asservissement():
 	while not rospy.is_shutdown():
 		try : 
 			
+			Kp = rospy.get_param('joy_to_cmd_vel/kp')
+			Ki = rospy.get_param('joy_to_cmd_vel/ki')
+			Kd = rospy.get_param('joy_to_cmd_vel/kd')
+            
 			error = x - velocity_mes
 			
 			error_integral += error/frequency
@@ -106,18 +110,26 @@ def asservissement():
 			
 			old_error = error
 			
+			if x>=0:
+				pwm = 6.88-0.20*speed
 
-			if (speed>=0 and speed<2.4):
-			    pwm=6.99-(0.1569*speed + 0.0032)
-		#	elif (x<1.4): 
+# 			if (speed>=0 and speed<2.4):
+# 			    pwm=6.99-(0.1569*speed + 0.0032)
+# 		#	elif (x<1.4): 
 
-		#	    pwm=6.95-(0.1569*1.4+0.0032)
-			elif (speed>2.4):
-			    pwm=6.95-(0.4037*speed-0.5757)
+# 		#	    pwm=6.95-(0.1569*1.4+0.0032)
+# 			elif (speed>2.4):
+# 			    pwm=6.95-(0.4037*speed-0.5757)
 
 
 			elif (x<0):
-			    pwm=7.5-0.5*x
+				if velocity_mes>0.1:
+					pwm = 6.5
+				elif velocity_mes>0:
+					pwm = 7.52
+				else:
+					pwm=7.5-0.9*x
+					error = 0
 
 		#	print(z)
 			p.ChangeDutyCycle(5.2-z/0.30)

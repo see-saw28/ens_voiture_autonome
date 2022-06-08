@@ -25,7 +25,7 @@ import numpy as np
 import rospy
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
-from std_msgs.msg import Bool,String
+from std_msgs.msg import Bool,String, Float32
 from geometry_msgs.msg import Twist, PoseWithCovarianceStamped, PoseStamped, Point, Vector3, Quaternion, Pose
 import numpy as np
 from nav_msgs.msg import Path, Odometry
@@ -44,6 +44,9 @@ course_x = []
 course_y = []
 
 old_u = 0
+collision = False
+
+stuck = False
 
 class State:
 
@@ -269,9 +272,11 @@ def calc_control_and_trajectory(x, dw, config, goal, ob):
             best_u = old_u
             best_trajectory = predict_trajectory(x_init, v, old_u, config)
             
+            
+            
         config.predict_time = config.predict_time_og
         
-    print(min_cost)
+    # print(min_cost)
     old_u = best_u                    
     return best_u, best_trajectory
 
@@ -356,11 +361,18 @@ def calc_goal_coord(state, course_x, course_y):
 
     # k = rospy.get_param('joy_to_cmd_vel/k_pp')
     # look_ahead_dist = rospy.get_param('joy_to_cmd_vel/look_ahead_dist')
+    try :
+        k = rospy.get_param('joy_to_cmd_vel/k_pp')
+        look_ahead_dist = rospy.get_param('joy_to_cmd_vel/look_ahead_dist')
+        
+    except:
+        look_ahead_dist = 1.0
+        k=0.5
     
-    look_ahead_dist = 1.0
-    k=0.5
 
     dyn_look_ahead_dist = k * state.v + look_ahead_dist
+    
+    # print(dyn_look_ahead_dist)
     # search nearest point index
     
     dx = [state.x - icx for icx in course_x]
@@ -435,7 +447,7 @@ def vel_callback(data):
     global state
     global vitesse_max
     
-    state.v = data.linear.x
+    state.v = data.data
     
 
 
@@ -446,18 +458,28 @@ def odom_callback(data):
     
     x_robot = np.array([0.0, 0.0, 0.0, -data.twist.twist.linear.x, data.twist.twist.angular.z])
     
+def collision_callback(data):
     
+    global collision
+    
+    collision = data.data
+    # print(data, 'callback')
 
 def lidar_callback(data):
     global config
-    
+    global stuck
     angle_min = data.angle_min
     angle_max = data.angle_max
     angle_increment = data.angle_increment
     ranges = data.ranges
     angles = np.linspace(angle_min,angle_max,len(ranges))
     xy=[]
-    
+    if ranges[0]<0.2:
+        stuck = True
+    elif ranges[0]<10 and stuck :
+        stuck = False
+        
+    pub_stuck.publish(Bool(stuck))
     for i,angle in enumerate(angles):
         xl=ranges[i]*np.cos(angle+np.pi)
         yl=ranges[i]*np.sin(angle+np.pi)
@@ -483,14 +505,16 @@ def publish_marker(pub, x, y):
 def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
     print(__file__ + " start!!")
     
-
+    global pub_stuck
     global x_robot
     # init node
     rospy.init_node('local_steering_controller')
     rate = rospy.Rate(15) # hz
     
-    pub = rospy.Publisher('local_steering_controller_cmd', Twist, queue_size=100)
+    # pub = rospy.Publisher('local_steering_controller_cmd', Twist, queue_size=100)
+    pub = rospy.Publisher('pure_pursuit_cmd', Twist, queue_size=100)
     pub_path = rospy.Publisher('local_steering_controller_path', Path, queue_size=100)
+    pub_stuck = rospy.Publisher('stuck', Bool, queue_size=10)
     
     rospy.Subscriber('scan', LaserScan, lidar_callback, queue_size=10)
     
@@ -498,8 +522,11 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
     rospy.Subscriber('syscommand', String, load_path_callback, queue_size=10)
     
     marker_pub = rospy.Publisher('local_steering_controller_look_ahead', Marker, queue_size=5)
+    rospy.Subscriber('vel', Float32, vel_callback, queue_size=10)
 
     rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
+    
+    rospy.Subscriber('collision', Bool, collision_callback, queue_size=10)
 
     # Start a TF broadcaster
     tf_br = tf.TransformBroadcaster()
@@ -520,63 +547,60 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
     max_steering_angle = 0.3
     
     while not rospy.is_shutdown() :
-        ob = config.ob
-        # print(ob)
-        if len(course_x) != 0:
-            goal = calc_goal_coord(state, course_x, course_y)
-            publish_marker(marker_pub, goal[0], goal[1])
-        u, predicted_trajectory = dwa_control(x_robot, config, goal, ob)
-        steer = u
-        x_robot[4] = u
-        
-        
-        # print(v, steer)
-        
-        msg = Twist()
-        msg.angular.z = steer
-        
-        pub.publish(msg)
-        
-        msg_path = Path()
-        msg_path.header.frame_id = 'base_link'
-        
-        for i,traj in enumerate(predicted_trajectory) :
-            pose = PoseStamped()
+        # print(collision, 'lcs')
+        if collision:
+            ob = config.ob
+            # print(ob)
+            if len(course_x) != 0 :
+                goal = calc_goal_coord(state, course_x, course_y)
+                publish_marker(marker_pub, goal[0], goal[1])
+            u, predicted_trajectory = dwa_control(x_robot, config, goal, ob)
+            steer = u
+            x_robot[4] = u
             
-            pose.header.frame_id = "base_link"
-            pose.header.seq = i
             
-            pose.pose.position.x = traj[0]
-            pose.pose.position.y = traj[1]
+            # print(v, steer)
             
-            msg_path.poses.append(pose)
+            msg = Twist()
+            msg.angular.z = steer
             
-        pub_path.publish(msg_path)
-        # x = motion(x, u, config.dt)  # simulate robot
-        # trajectory = np.vstack((trajectory, x))  # store state history
-        # rate.sleep()
-        if show_animation:
-            plt.cla()
-            # for stopping simulation with the esc key.
-            plt.gcf().canvas.mpl_connect(
-                'key_release_event',
-                lambda event: [exit(0) if event.key == 'escape' else None])
-            plt.plot(predicted_trajectory[:, 0], predicted_trajectory[:, 1], "-g")
-            plt.plot(x_robot[0], x_robot[1], "xr")
-            plt.plot(goal[0], goal[1], "xb")
-            plt.plot(ob[:, 0], ob[:, 1], "ok")
-            plot_robot(x_robot[0], x_robot[1], x_robot[2], config)
-            plot_arrow(x_robot[0], x_robot[1], x_robot[2])
-            plt.axis("equal")
-            plt.grid(True)
-            plt.pause(0.0001)
-
-        # check reaching goal
-        dist_to_goal = math.hypot(x_robot[0] - goal[0], x_robot[1] - goal[1])
-        if dist_to_goal <= config.robot_radius:
-            print("Goal!!")
-            break
-
+            pub.publish(msg)
+            
+            msg_path = Path()
+            msg_path.header.frame_id = 'base_link'
+            
+            for i,traj in enumerate(predicted_trajectory) :
+                pose = PoseStamped()
+                
+                pose.header.frame_id = "base_link"
+                pose.header.seq = i
+                
+                pose.pose.position.x = traj[0]
+                pose.pose.position.y = traj[1]
+                
+                msg_path.poses.append(pose)
+                
+            pub_path.publish(msg_path)
+            # x = motion(x, u, config.dt)  # simulate robot
+            # trajectory = np.vstack((trajectory, x))  # store state history
+            # rate.sleep()
+            if show_animation:
+                plt.cla()
+                # for stopping simulation with the esc key.
+                plt.gcf().canvas.mpl_connect(
+                    'key_release_event',
+                    lambda event: [exit(0) if event.key == 'escape' else None])
+                plt.plot(predicted_trajectory[:, 0], predicted_trajectory[:, 1], "-g")
+                plt.plot(x_robot[0], x_robot[1], "xr")
+                plt.plot(goal[0], goal[1], "xb")
+                plt.plot(ob[:, 0], ob[:, 1], "ok")
+                plot_robot(x_robot[0], x_robot[1], x_robot[2], config)
+                plot_arrow(x_robot[0], x_robot[1], x_robot[2])
+                plt.axis("equal")
+                plt.grid(True)
+                plt.pause(0.0001)
+    
+            
     print("Done")
    
 

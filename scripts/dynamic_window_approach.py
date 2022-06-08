@@ -12,13 +12,14 @@ author: Atsushi Sakai (@Atsushi_twi), Göktuğ Karakaşlı
 
 import math
 from enum import Enum
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rospy
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
-from std_msgs.msg import Bool,String
+from std_msgs.msg import Bool,String, Float32
 from geometry_msgs.msg import Twist, PoseWithCovarianceStamped, PoseStamped, Point, Vector3, Quaternion, Pose
 import numpy as np
 from nav_msgs.msg import Path, Odometry
@@ -72,21 +73,21 @@ class Config:
 
     def __init__(self):
         # robot parameter
-        self.max_speed = 3.0  # [m/s]
+        self.max_speed = 2.0  # [m/s]
         self.min_speed = -1.0  # [m/s]
-        self.max_yaw_rate = 2.5  # [rad/s]
-        self.max_accel = 8.0 # [m/ss]
+        self.max_yaw_rate = 3.5  # [rad/s]
+        self.max_accel = 4.0 # [m/ss]
         self.max_steering_angle = 0.30 # [rad]
         self.v_resolution = 0.3  # [m/s]
-        self.steering_resolution = 0.03  # [rad]
+        self.steering_resolution = 0.05  # [rad]
         self.steering_speed = 3.0 # rad/s
         self.wheelbase = 0.257
         self.dt = 0.1  # [s] Time tick for motion prediction
-        self.predict_time_og = 1.5  # [s]
-        self.predict_time = 1.5  # [s]
-        self.to_goal_cost_gain = 0.15
+        self.predict_time_og = 1.0  # [s]
+        self.predict_time = 1.0  # [s]
+        self.to_goal_cost_gain = 0.30
         self.speed_cost_gain = 1.0
-        self.obstacle_cost_gain = 1.0
+        self.obstacle_cost_gain = 0.1
         self.robot_stuck_flag_cons = 0.001  # constant to prevent robot stucked
         self.robot_type = RobotType.circle
 
@@ -315,7 +316,7 @@ def calc_goal_coord(state, course_x, course_y):
     # look_ahead_dist = rospy.get_param('joy_to_cmd_vel/look_ahead_dist')
     
     look_ahead_dist = 1.0
-    k=0.5
+    k=1.0
 
     dyn_look_ahead_dist = k * state.v + look_ahead_dist
     # search nearest point index
@@ -392,7 +393,8 @@ def vel_callback(data):
     global state
     global vitesse_max
     
-    state.v = data.linear.x
+    state.v = data.data
+    # print(state.v)
     
 
 
@@ -458,6 +460,7 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
     marker_pub = rospy.Publisher('dwa_look_ahead', Marker, queue_size=5)
 
     rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
+    rospy.Subscriber('vel', Float32, vel_callback, queue_size=10)
 
     # Start a TF broadcaster
     tf_br = tf.TransformBroadcaster()
@@ -489,6 +492,8 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
         x_robot[5] = u[1]
         
         # print(v, steer)
+        if v <0:
+            v = -0.8
         
         msg = Twist()
         msg.angular.z = steer
@@ -512,6 +517,8 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
         pub_path.publish(msg_path)
         # x = motion(x, u, config.dt)  # simulate robot
         # trajectory = np.vstack((trajectory, x))  # store state history
+        
+        
 
         if show_animation:
             plt.cla()

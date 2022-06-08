@@ -32,7 +32,8 @@ import rospy
 import math
 import os 
 import numpy as np
-from std_msgs.msg import Float64, String
+import time
+from std_msgs.msg import Float64, String, Bool
 from geometry_msgs.msg import PointStamped, Twist, PoseWithCovarianceStamped, Pose, Point, Vector3, Quaternion, PoseStamped
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from nav_msgs.msg import Path, Odometry
@@ -48,6 +49,7 @@ import pickle
 
 k = 0.4  # Look forward gain (Dynamic look-ahead)
 look_ahead_dist = 0.6  # Look-ahead distance
+lidar_look_ahead_dist = 1.0
 wheelbase_length = 0.257  # wheel base of vehicle [m]
 max_steering_angle = 0.30 # rad
 vitesse_max=2
@@ -60,6 +62,8 @@ course_y = []
 
 collision = False
 
+
+
 class State:
 
     def __init__(self, x=0.0, y=0.0, yaw=0.0, v=0.0):
@@ -67,6 +71,8 @@ class State:
         self.y = y
         self.yaw = yaw
         self.v = v
+        self.driving_mode = 'DRIVE'
+        self.time = time.time()
 
 # initial state
 state = State(x=0.0, y=0.0, yaw=0.0, v=0.0)
@@ -85,6 +91,7 @@ def normalize_angle(angle):
 def pure_pursuit_control(state, course_x, course_y):
     # adapted from: https://github.com/AtsushiSakai/PythonRobotics/tree/master/PathTracking/pure_pursuit
 
+    global lidar_look_ahead_dist
     # Get waypoint target index
     ind, ind_car = calc_target_index(state, course_x, course_y)
 
@@ -104,6 +111,16 @@ def pure_pursuit_control(state, course_x, course_y):
 
     # Dynamic look-ahead distance
     dyn_look_ahead_dist = k * abs(state.v) + look_ahead_dist
+    
+    try :
+        k_obstacle = rospy.get_param('joy_to_cmd_vel/k_obstacle')
+        look_ahead_dist_obstacle = rospy.get_param('joy_to_cmd_vel/look_ahead_dist_obstacle')
+        
+    except:
+        k_obstacle = 0.4  # Look forward gain (Dynamic look-ahead)
+        look_ahead_dist_obstacle = 0.6  # Look-ahead distance
+    
+    lidar_look_ahead_dist = look_ahead_dist_obstacle + k_obstacle * state.v - 0.235*np.cos(alpha)
 
     # Calc steering wheel angle delta
     delta = math.atan2(2.0 * wheelbase_length * math.sin(alpha) / dyn_look_ahead_dist, 1.0)
@@ -122,6 +139,8 @@ def pure_pursuit_control(state, course_x, course_y):
 def calc_target_index(state, course_x, course_y):
     # adapted from: https://github.com/AtsushiSakai/PythonRobotics/tree/master/PathTracking/pure_pursuit
     global dyn_look_ahead_dist
+    global k
+    global look_ahead_dist
     
     try :
         k = rospy.get_param('joy_to_cmd_vel/k_pp')
@@ -190,6 +209,7 @@ def load_path_callback(msg):
 
         course_x = path_x
         course_y = path_y
+        print('traj loaded')
         
 
 aeb_distance = 0.7
@@ -209,11 +229,14 @@ def odom_callback(data):
     state.v = -data.twist.twist.linear.x
     # print(state.v)
     
+
+
 def lidar_callback(data):
     global pub_marker
     global pub
     global alpha
     global collision
+    global pub_collision
     
     angle_min = data.angle_min
     angle_max = data.angle_max
@@ -221,7 +244,7 @@ def lidar_callback(data):
     ranges = data.ranges
     # print(angle_min, angle_max)
     
-    alpha = np.arcsin(dyn_look_ahead_dist*np.tan(steering_angle)/(2*wb))
+    alpha = np.arcsin(lidar_look_ahead_dist*np.tan(steering_angle)/(2*wb))
     
     
     laser_number = int(alpha/angle_increment)
@@ -230,110 +253,17 @@ def lidar_callback(data):
     number_of_check = int(radius / (0.5*angle_increment))
 
     for i in range(laser_number-number_of_check, laser_number+number_of_check):
-        if ranges[i]*abs(i-laser_number)<radius:
-            print(ranges[i])
-        if ranges[i]<dyn_look_ahead_dist and ranges[i]*abs(i-laser_number)<radius:
+        # if ranges[i]*abs(i-laser_number)<radius:
+            # print(ranges[i], lidar_look_ahead_dist)
+        if ranges[i]<lidar_look_ahead_dist and ranges[i]*abs(i-laser_number)*angle_increment<radius:
             collision = True
             break
             
         else :
             collision = False
             
-    if collision:
-        ranges = np.roll(np.array(data.ranges),180)
-        # print(angle_min, angle_max)
-        n = len(ranges)
-        angles = np.linspace(angle_min,angle_max,n)
-        xy=[]
-        
-        ranges[ranges>12]=0
-        
-        max_distance = 4
-        
-        ranges[ranges>max_distance]=max_distance
-        l=2
-        cut_angle = np.pi/4
-        new_ranges=np.zeros(n)
-        for i,angle in enumerate(angles):
-            if abs(angle)<cut_angle:
-                #convolution
-                new_ranges[i] = np.mean(ranges[max(0,i-l):min(i+l+1,n)])
-        
-        
-        closest_dist = min(ranges[ranges!=0])
-        closest_dist_index = list(ranges).index(closest_dist)
-        closest_dist_angle = angle_increment * closest_dist_index + angle_min
-        
-       
-        
-        # eliminate all points in the bubble
-        radius = 0.15
-        
-        bubble_number = int(np.ceil(radius / (closest_dist * angle_increment)))
-              
-        for i in range(bubble_number):
-            new_ranges[closest_dist_index+i] = 0
-            new_ranges[closest_dist_index-i] = 0
-            
-        # find the max gap in free space
-        
-        max_idx = int(abs(cut_angle - angle_min) / angle_increment)
-        min_idx = n - max_idx
-        
-        start = min_idx
-        end = min_idx
-        current_start = min_idx -1
-        duration = 0
-        longest_duration = 0
-
-
-        for i in range(min_idx, max_idx):
-            if current_start < min_idx :
-                if new_ranges[i]>0:
-                    current_start = i
-            elif new_ranges[i]<=0:
-                duration = i - current_start
-                if duration > longest_duration :
-                    longest_duration = duration
-                    start = current_start
-                    end = i-1
-                current_start = min_idx - 1
-                
-        if current_start >= min_idx :
-            duration = max_idx + 1 - current_start
-            if duration > longest_duration:
-                longest_duration = duration
-                start = current_start
-                end = max_idx
-          
-        current_max = 0
-        for i in range(start,end):
-            if new_ranges[i]>current_max:
-                current_max = new_ranges[i]
-                angle = angle_increment * i + angle_min
-                
-            elif new_ranges[i]==current_max:
-                if abs(angle_increment * i + angle_min)< abs(angle):
-                    angle = angle_increment * i + angle_min
-        
-        # display furthest point 
-        x = -min(current_max, dyn_look_ahead_dist) * np.cos(angle)
-        y = -min(current_max, dyn_look_ahead_dist) * np.sin(angle)
-        publish_marker(pub_marker, x, y, angle, collide=True)
-        
-        
-        wheelbase_length = 0.257
-        max_steering_angle = 0.3
-        
-        # publish steering command
-        msg = Twist()
-        
-       
-        # Steering as PP
-        delta = math.atan2(2.0 * wheelbase_length * math.sin(angle) / min(current_max, dyn_look_ahead_dist), 1.0)
-        delta = np.clip(delta, -max_steering_angle, max_steering_angle)
-        msg.angular.z = delta
-        pub.publish(msg)
+    
+    
    
         
     
@@ -361,8 +291,8 @@ def publish_collision_marker(pub, alpha, collide=False):
     
     marker.pose=Pose(Point(0,0,0), Quaternion(0,0,0,1))
     marker.points.append(Point(0,0,0))
-    x = -dyn_look_ahead_dist * np.cos(alpha)
-    y = -dyn_look_ahead_dist * np.sin(alpha)
+    x = -lidar_look_ahead_dist * np.cos(alpha)
+    y = -lidar_look_ahead_dist * np.sin(alpha)
     marker.points.append(Point(x,y,0))
     if collide :
         marker.color = ColorRGBA(1,0,0,1)
@@ -374,6 +304,7 @@ def publish_collision_marker(pub, alpha, collide=False):
 
 def main():
     global steering_angle
+    global state
 
     # Publish
     pub = rospy.Publisher('pure_pursuit_cmd', Twist, queue_size=100)
@@ -386,48 +317,55 @@ def main():
     rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
     rospy.Subscriber('scan', LaserScan, lidar_callback, queue_size=10)
     
+    
     pub_marker = rospy.Publisher('pure_pursuit_look_ahead', Marker, queue_size=10)
     pub_collision_marker = rospy.Publisher('collision_check', Marker, queue_size=10)
     pub_path = rospy.Publisher('pure_pursuit_path', Path, queue_size=10)
     
+    pub_collision = rospy.Publisher('collision', Bool, queue_size=10)
+    
     while not rospy.is_shutdown():
+        pub_collision.publish(Bool(collision))
+            
+        if not collision :
+            # Get steering angle
+            if len(course_x) != 0 :
+                speed, steering_angle, target_ind, alpha, R = pure_pursuit_control(state, course_x, course_y)
+                if target_ind is not None:
+                    
+                    # display look ahead point
+                    publish_marker(pub_marker, course_x[target_ind], course_y[target_ind],alpha+state.yaw, collide=collision)
+                    publish_collision_marker(pub_collision_marker, alpha, collide=collision)
+                    
+                    
+                   
+                    # display the path to the look ahead point
+                    msg_path = Path()
+                    msg_path.header.frame_id = 'base_link'
+                    
+                    angles = np.linspace(0,2*abs(alpha),50)
+                    for i,angle in enumerate(angles) :
+                        pose = PoseStamped()
+                        
+                        pose.header.frame_id = "base_link"
+                        pose.header.seq = i
+                        
+                        pose.pose.position.x = R * np.sin(angle)
+                        pose.pose.position.y = R * (1 - np.cos(angle)) * np.sign(alpha)
+                        
+                        msg_path.poses.append(pose)
+                        
+                    pub_path.publish(msg_path)
+            else:
+                steering_angle = 0.0
+                target_ind = 0
+                speed = 0
 
-        # Get steering angle
-        if len(course_x) != 0:
-            speed, steering_angle, target_ind, alpha, R = pure_pursuit_control(state, course_x, course_y)
-            if target_ind is not None:
-                
-                # display look ahead point
-                publish_marker(pub_marker, course_x[target_ind], course_y[target_ind],alpha+state.yaw, collide=collision)
-                publish_collision_marker(pub_collision_marker, alpha, collide=collision)
-               
-                # display the path to the look ahead point
-                msg_path = Path()
-                msg_path.header.frame_id = 'base_link'
-                
-                angles = np.linspace(0,2*abs(alpha),50)
-                for i,angle in enumerate(angles) :
-                    pose = PoseStamped()
-                    
-                    pose.header.frame_id = "base_link"
-                    pose.header.seq = i
-                    
-                    pose.pose.position.x = R * np.sin(angle)
-                    pose.pose.position.y = R * (1 - np.cos(angle)) * np.sign(alpha)
-                    
-                    msg_path.poses.append(pose)
-                    
-                pub_path.publish(msg_path)
-        else:
-            steering_angle = 0.0
-            target_ind = 0
-            speed = 0
-
-        # Publish steering msg
-        msg = Twist()
-        msg.angular.z = steering_angle
-        msg.linear.x = speed
-        pub.publish(msg)
+            # Publish steering msg
+            msg = Twist()
+            msg.angular.z = steering_angle
+            msg.linear.x = speed
+            pub.publish(msg)
 
         rate.sleep()
 

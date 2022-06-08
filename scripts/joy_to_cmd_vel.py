@@ -34,7 +34,13 @@ PP_steering = 0
 SC_speed = 0
 SC_steering = 0
 
-MB_STEERING = 0
+MB_steering = 0
+
+FTG_steering = 0
+
+LSC_steering = 0
+
+DWA_steering = 0
 
 speed_mode = 0
 driving_mode = 0
@@ -46,20 +52,55 @@ breaking_time = 0
 
 velocity_mes = 0
 
+escape_distance = 0.8
+
 driving_mode_dict = {0:'MANUAL',1:'PURE PURSUIT',2:'STANLEY CONTROLLER',3:'MOVE BASE',4:'DWA',5:'FOLLOW THE GAP',6:'LOCAL STEERING CONTROLLER'}
 speed_mode_dict = {0:'MANUAL',1:'CONSTANT',2:'GAUSSIAN', 3:'BINARY',4:'LINEAR',5:'RECORDED'}
 
 print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
 
+class State:
+
+    def __init__(self, x=0.0, y=0.0, yaw=0.0, v=0.0):
+        self.x = x
+        self.y = y
+        self.stuck_x = 0
+        self.stuck_y = 0
+        self.yaw = yaw
+        self.v = v
+        self.driving_mode = 'DRIVE'
+        self.time = time.time()
+
+# initial state
+state = State(x=0.0, y=0.0, yaw=0.0, v=0.0)
+
 def get_velocity(steering):
     global breaking
+    global state
         
+    print(state.driving_mode, np.sqrt((state.stuck_x - state.x)**2 + (state.stuck_y - state.y)**2))
     if breaking and time.time()-breaking_time < 0.5:
         velocity = -3
         
         
     elif breaking and time.time()-breaking_time > 0.5:
         breaking = False
+        velocity = 0
+        
+    elif state.driving_mode == 'STUCK' and time.time()-state.time <1:
+        print('wait')
+        velocity = -0.001
+        
+        
+    elif state.driving_mode == 'STUCK' and np.sqrt((state.stuck_x - state.x)**2 + (state.stuck_y - state.y)**2)<escape_distance:
+        print('move back')
+        velocity = -1
+        
+    
+    elif state.driving_mode == 'STUCK' and np.sqrt((state.stuck_x - state.x)**2 + (state.stuck_y - state.y)**2)>escape_distance:
+        state.driving_mode = 'DRIVE'
+        print(state.driving_mode)
+        velocity = 0
         
     elif aeb :
         velocity = -3
@@ -82,6 +123,18 @@ def get_velocity(steering):
     
     return velocity
 
+def stuck_callback(data):
+    
+    global state
+    
+    if state.driving_mode != 'STUCK' and data.data:
+        
+        state.driving_mode = 'STUCK'
+        state.time = time.time()
+        state.stuck_x = state.x
+        state.stuck_y = state.y
+        print(state.driving_mode)
+
 def callback(data):
     global speed_max
     global driving_mode
@@ -100,7 +153,7 @@ def callback(data):
     
     if breaking and time.time()-breaking_time < 0.5:
         msg.linear.x = -3
-        msg.angular.z = 0
+        msg.angular.z = -data.AXIS_LEFT_STICK_X*steer_max
         pub.publish(msg)
         
     elif breaking and time.time()-breaking_time > 0.5:
@@ -108,12 +161,12 @@ def callback(data):
         
     elif aeb :
         msg.linear.x = -3
-        msg.angular.z = 0
+        msg.angular.z = -data.AXIS_LEFT_STICK_X*steer_max
         pub.publish(msg)
         
     elif driving_mode == 0:
         if data.BUTTON_SQUARE :
-            msg.linear.x = speed_max
+            msg.linear.x = -speed_max
         else :
             msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
         msg.angular.z = -data.AXIS_LEFT_STICK_X*steer_max
@@ -124,7 +177,7 @@ def callback(data):
         
         msg.angular.z = PP_steering
         if data.BUTTON_SQUARE :
-            msg.linear.x = speed_max
+            msg.linear.x = -speed_max
         else :
             msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
         pub.publish(msg)   
@@ -157,17 +210,23 @@ def callback(data):
         msg.angular.z = FTG_steering
         msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
         pub.publish(msg)
+        
+    elif driving_mode == 6 and speed_mode == 0 :
+        
+        msg.angular.z = LSC_steering
+        msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
+        pub.publish(msg)
     
     
        
     
     
     if (data.RE_R1):
-        speed_max = min(speed_max+0.5, 6)
+        speed_max = min(speed_max+0.25, 6)
         print(f'vitesse max :{speed_max} m/s')
         
     elif (data.RE_L1):
-        speed_max = max(speed_max-0.5,1)
+        speed_max = max(speed_max-0.25,0.5)
         print(f'vitesse max :{speed_max} m/s')
         
     if (data.HAT_X == 1 and data.RE_HAT_X):
@@ -202,12 +261,14 @@ def pure_pursuit_callback(data):
         
         msg.angular.z = PP_steering
         
-        if speed_mode<5:
+        if speed_mode<5 and speed_mode !=0:
             msg.linear.x = get_velocity(PP_steering)
-        else:
+        elif speed_mode == 5:
             msg.linear.x = PP_speed
         
         if speed_mode != 0:
+            if state.driving_mode == 'STUCK':
+                msg.angular.z = 0
             pub.publish(msg)
     
 def stanley_control_callback(data):
@@ -222,9 +283,9 @@ def stanley_control_callback(data):
         
         msg.angular.z = SC_steering
 
-        if speed_mode<5:
+        if speed_mode<5 and speed_mode !=0:
             msg.linear.x = get_velocity(SC_steering)
-        else:
+        elif speed_mode == 5:
             msg.linear.x = SC_speed
         
         if speed_mode != 0:
@@ -277,9 +338,9 @@ def dwa_callback(data):
         
         msg.angular.z = DWA_steering
 
-        if speed_mode<5:
+        if speed_mode<5 and speed_mode !=0:
             msg.linear.x = get_velocity(DWA_steering)
-        else:
+        elif speed_mode == 5:
             msg.linear.x = DWA_speed
         
         if speed_mode != 0:
@@ -297,9 +358,9 @@ def follow_the_gap_callback(data):
         
         msg.angular.z = FTG_steering
 
-        if speed_mode<5:
+        if speed_mode<5 and speed_mode !=0:
             msg.linear.x = get_velocity(FTG_steering)
-        else:
+        elif speed_mode == 5:
             msg.linear.x = FTG_speed
         
         if speed_mode != 0:
@@ -317,9 +378,9 @@ def lsc_callback(data):
         
         msg.angular.z = LSC_steering
 
-        if speed_mode<5:
+        if speed_mode<5 and speed_mode !=0:
             msg.linear.x = get_velocity(LSC_steering)
-        else:
+        elif speed_mode == 5:
             msg.linear.x = 0
             print('no speed return')
         
@@ -348,6 +409,13 @@ def server_callback(config, level):
     
     return config
 
+def odom_callback(data):
+    
+    global state
+    
+    state.x = data.pose.pose.position.x
+    state.y = data.pose.pose.position.y
+
 def listener_and_pub():
     global pub_vel
     
@@ -356,10 +424,12 @@ def listener_and_pub():
     rospy.Subscriber("/stanley_control_cmd", Twist, stanley_control_callback)
     rospy.Subscriber("/move_base_cmd", Twist, move_base_callback)
     rospy.Subscriber("/dwa_cmd", Twist, dwa_callback)
-    rospy.Subscriber("/follow_the_gap_cmd", Twist, dwa_callback)
+    rospy.Subscriber("/follow_the_gap_cmd", Twist, follow_the_gap_callback)
     rospy.Subscriber("/local_steering_controller_cmd", Twist, lsc_callback)
     rospy.Subscriber("/AEB", Bool, aeb_callback)
     rospy.Subscriber("/camera/odom/sample", Odometry, odom_callback)
+    rospy.Subscriber('stuck', Bool, stuck_callback, queue_size=10)
+    rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
     srv = Server(ControllerConfig, server_callback)
     pub_vel = rospy.Publisher('/vel',Float32,queue_size=5)
     rospy.spin()
