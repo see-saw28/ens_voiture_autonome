@@ -190,6 +190,7 @@ def load_path_callback(msg):
     global course_x
     global course_y
     global course_speed
+    global pub_full_path
 
     msg=msg.data.split(" ")
     if (msg[0]=="load" and len(msg)>1):
@@ -197,15 +198,34 @@ def load_path_callback(msg):
         path_y = []
         course_speed = []
         
-    
+        # display the path to the look ahead point
+        msg_path = Path()
+        msg_path.header.frame_id = 'map'
+        
+        
+            
+            
+        
        
         f = open(rospack.get_path('ens_vision')+f'/paths/{msg[1]}.pckl', 'rb')
         marker,speeds,orientations,cmd_speeds = pickle.load(f)
         f.close()
-        for i, pose in enumerate(marker.points):
-            path_x.append(pose.x)
-            path_y.append(pose.y)
+        for i, pose1 in enumerate(marker.points):
+            path_x.append(pose1.x)
+            path_y.append(pose1.y)
             course_speed.append(cmd_speeds[i])
+            
+            pose = PoseStamped()
+            
+            pose.header.frame_id = "map"
+            pose.header.seq = i
+            
+            pose.pose.position.x = pose1.x
+            pose.pose.position.y = pose1.y
+            
+            msg_path.poses.append(pose)
+            
+        pub_full_path.publish(msg_path)
 
         course_x = path_x
         course_y = path_y
@@ -246,8 +266,11 @@ def lidar_callback(data):
     
     alpha = np.arcsin(lidar_look_ahead_dist*np.tan(steering_angle)/(2*wb))
     
-    
-    laser_number = int(alpha/angle_increment)
+    try :
+        laser_number = int(alpha/angle_increment)
+        
+    except:
+        laser_number = 0
     
     radius = 0.15
     number_of_check = int(radius / (0.5*angle_increment))
@@ -271,8 +294,8 @@ def lidar_callback(data):
 def publish_marker(pub, x, y, theta, collide=False):
     marker = Marker()     
     marker.header=Header(frame_id='map')
-    marker.type=Marker.CUBE
-    marker.scale=Vector3(0.2, 0.2, 0.2)
+    marker.type=Marker.SPHERE
+    marker.scale=Vector3(0.15, 0.15, 0.15)
     a,b,c,d = quaternion_from_euler(0,0,theta)
     marker.pose=Pose(Point(x,y,0), Quaternion(a,b,c,d))
     if collide :
@@ -305,6 +328,7 @@ def publish_collision_marker(pub, alpha, collide=False):
 def main():
     global steering_angle
     global state
+    global pub_full_path
 
     # Publish
     pub = rospy.Publisher('pure_pursuit_cmd', Twist, queue_size=100)
@@ -321,6 +345,7 @@ def main():
     pub_marker = rospy.Publisher('pure_pursuit_look_ahead', Marker, queue_size=10)
     pub_collision_marker = rospy.Publisher('collision_check', Marker, queue_size=10)
     pub_path = rospy.Publisher('pure_pursuit_path', Path, queue_size=10)
+    pub_full_path = rospy.Publisher('loaded_path', Path, queue_size=10)
     
     pub_collision = rospy.Publisher('collision', Bool, queue_size=10)
     

@@ -495,7 +495,7 @@ def publish_marker(pub, x, y):
     marker = Marker()     
     marker.header=Header(frame_id='base_link')
     marker.type=Marker.SPHERE
-    marker.scale=Vector3(0.1, 0.1, 0.1)
+    marker.scale=Vector3(0.15, 0.15, 0.15)
     marker.pose=Pose(Point(x,y,0), Quaternion(0,0,0,1))
     marker.color = ColorRGBA(0,1,0,1)
     marker.lifetime = rospy.Duration(100)
@@ -513,7 +513,8 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
     
     # pub = rospy.Publisher('local_steering_controller_cmd', Twist, queue_size=100)
     pub = rospy.Publisher('pure_pursuit_cmd', Twist, queue_size=100)
-    pub_path = rospy.Publisher('local_steering_controller_path', Path, queue_size=100)
+    # pub_path = rospy.Publisher('local_steering_controller_path', Path, queue_size=100)
+    pub_path = rospy.Publisher('pure_pursuit_path', Path, queue_size=100)
     pub_stuck = rospy.Publisher('stuck', Bool, queue_size=10)
     
     rospy.Subscriber('scan', LaserScan, lidar_callback, queue_size=10)
@@ -521,7 +522,8 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
     rospy.Subscriber('amcl_pose', PoseWithCovarianceStamped, update_state_callback, queue_size=100)
     rospy.Subscriber('syscommand', String, load_path_callback, queue_size=10)
     
-    marker_pub = rospy.Publisher('local_steering_controller_look_ahead', Marker, queue_size=5)
+    # marker_pub = rospy.Publisher('local_steering_controller_look_ahead', Marker, queue_size=5)
+    marker_pub = rospy.Publisher('pure_pursuit_look_ahead', Marker, queue_size=5)
     rospy.Subscriber('vel', Float32, vel_callback, queue_size=10)
 
     rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)

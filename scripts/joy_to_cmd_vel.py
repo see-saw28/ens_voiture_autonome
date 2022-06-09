@@ -25,6 +25,7 @@ speed_max=2
 steer_max=0.30
 
 corner_speed_coef = 0.5
+obstacle_speed_coef = 0.5
 sigma2 = -steer_max**2/np.log(corner_speed_coef)
 binary_steering_threshold = 0.1
 
@@ -54,6 +55,8 @@ velocity_mes = 0
 
 escape_distance = 0.8
 
+collision = False
+
 driving_mode_dict = {0:'MANUAL',1:'PURE PURSUIT',2:'STANLEY CONTROLLER',3:'MOVE BASE',4:'DWA',5:'FOLLOW THE GAP',6:'LOCAL STEERING CONTROLLER'}
 speed_mode_dict = {0:'MANUAL',1:'CONSTANT',2:'GAUSSIAN', 3:'BINARY',4:'LINEAR',5:'RECORDED'}
 
@@ -78,7 +81,7 @@ def get_velocity(steering):
     global breaking
     global state
         
-    print(state.driving_mode, np.sqrt((state.stuck_x - state.x)**2 + (state.stuck_y - state.y)**2))
+    # print(state.driving_mode, np.sqrt((state.stuck_x - state.x)**2 + (state.stuck_y - state.y)**2))
     if breaking and time.time()-breaking_time < 0.5:
         velocity = -3
         
@@ -86,10 +89,17 @@ def get_velocity(steering):
     elif breaking and time.time()-breaking_time > 0.5:
         breaking = False
         velocity = 0
+        state.driving_mode = 'STUCK' 
+        state.time = time.time()
         
     elif state.driving_mode == 'STUCK' and time.time()-state.time <1:
-        print('wait')
+        
         velocity = -0.001
+        
+    elif state.driving_mode == 'STUCK' and time.time()-state.time >5:
+        state.time = time.time()
+        velocity = -0.001
+        
         
         
     elif state.driving_mode == 'STUCK' and np.sqrt((state.stuck_x - state.x)**2 + (state.stuck_y - state.y)**2)<escape_distance:
@@ -104,6 +114,9 @@ def get_velocity(steering):
         
     elif aeb :
         velocity = -3
+        
+    elif collision :
+        velocity = speed_max * obstacle_speed_coef
     
     elif speed_mode == 1:
         velocity = speed_max
@@ -134,6 +147,7 @@ def stuck_callback(data):
         state.stuck_x = state.x
         state.stuck_y = state.y
         print(state.driving_mode)
+        print('wait')
 
 def callback(data):
     global speed_max
@@ -399,10 +413,12 @@ def odom_callback(data):
     
 def server_callback(config, level):
     global corner_speed_coef
+    global obstacle_speed_coef
     global binary_steering_threshold
     global sigma2 
             
     corner_speed_coef = config['corner_speed_coef']
+    obstacle_speed_coef = config['obstacle_speed_coef']
     sigma2 = -steer_max**2/np.log(corner_speed_coef)
     binary_steering_threshold = config['binary_steering_threshold']
     
@@ -415,6 +431,12 @@ def odom_callback(data):
     
     state.x = data.pose.pose.position.x
     state.y = data.pose.pose.position.y
+    
+def collision_callback(data):
+    
+    global collision
+    
+    collision = data.data
 
 def listener_and_pub():
     global pub_vel
@@ -430,6 +452,7 @@ def listener_and_pub():
     rospy.Subscriber("/camera/odom/sample", Odometry, odom_callback)
     rospy.Subscriber('stuck', Bool, stuck_callback, queue_size=10)
     rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
+    rospy.Subscriber('collision', Bool, collision_callback, queue_size=10)
     srv = Server(ControllerConfig, server_callback)
     pub_vel = rospy.Publisher('/vel',Float32,queue_size=5)
     rospy.spin()
