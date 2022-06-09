@@ -96,7 +96,7 @@ def get_velocity(steering):
         
         velocity = -0.001
         
-    elif state.driving_mode == 'STUCK' and time.time()-state.time >5:
+    elif state.driving_mode == 'STUCK' and time.time()-state.time >4:
         state.time = time.time()
         velocity = -0.001
         

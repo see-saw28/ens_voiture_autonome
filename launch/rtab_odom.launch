@@ -139,6 +139,7 @@
       <param name="Icp/VoxelSize"            type="string" value="0.05"/>
       <param name="Icp/RangeMax"             type="string" value="$(arg max_range)"/>
       <param name="Grid/RangeMax"            type="string" value="$(arg max_range)"/>
+      <param name="Grid/CellSize" type="string" value="0.025"/>
     </node>
     
     <!-- Visualisation RTAB-Map -->
@@ -148,7 +149,6 @@
       <param name="frame_id"            type="string" value="base_footprint"/>
     
       <remap from="scan"            to="/scan"/>
-      
 
       <!-- As hector doesn't provide compatible covariance in the odometry topic -->
       <param if="$(arg hector)" name="odom_frame_id" type="string" value="hector_map"/>
@@ -168,5 +168,4 @@
     <param name="voxel_size" type="double" value="0.01"/>
   </node>
   <node pkg="topic_tools" type="relay" name="topic_tools" args="rtabmap/grid_map map"/>
-
 </launch>
