@@ -601,6 +601,8 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
                 plt.axis("equal")
                 plt.grid(True)
                 plt.pause(0.0001)
+                
+        rate.sleep()
     
             
     print("Done")

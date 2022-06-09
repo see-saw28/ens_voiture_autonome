@@ -212,7 +212,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/Marker
       Enabled: true
-      Marker Topic: /current_lap_marker
+      Marker Topic: /trajectory_loaded
       Name: Marker
       Namespaces:
         {}
@@ -303,30 +303,30 @@ Visualization Manager:
       Marker Topic: /pure_pursuit_look_ahead
       Name: Marker
       Namespaces:
-        {}
+        "": true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
-      Enabled: true
+      Enabled: false
       Marker Topic: /local_steering_controller_look_ahead
       Name: Marker
       Namespaces:
         {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Class: rviz/Marker
       Enabled: true
       Marker Topic: /collision_check
       Name: Marker
       Namespaces:
-        {}
+        "": true
       Queue Size: 100
       Value: true
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
       Color: 25; 255; 0
-      Enabled: true
+      Enabled: false
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
@@ -345,7 +345,7 @@ Visualization Manager:
       Shaft Length: 0.10000000149011612
       Topic: /local_steering_controller_path
       Unreliable: false
-      Value: true
+      Value: false
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
@@ -398,7 +398,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 9.942501068115234
+      Distance: 10.507913589477539
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -406,9 +406,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 1.1264846324920654
-        Y: 2.077037811279297
-        Z: -0.11202219873666763
+        X: -0.7165082693099976
+        Y: -0.25587064027786255
+        Z: -0.03969794139266014
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -416,7 +416,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 6.268590927124023
+      Yaw: 5.823576927185059
     Saved: ~
 Window Geometry:
   Displays:

@@ -86,7 +86,7 @@ def asservissement():
 	rospy.Subscriber("/cmd_vel", Twist, callback) #/cmd_vel /key_vel /ps3_vel /joy
 	rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
 	
-	frequency = 1000
+	frequency = 100
 
 	rate = rospy.Rate(frequency) 
     
@@ -95,11 +95,14 @@ def asservissement():
     
 	while not rospy.is_shutdown():
 		try : 
-			
-			Kp = rospy.get_param('joy_to_cmd_vel/kp')
-			Ki = rospy.get_param('joy_to_cmd_vel/ki')
-			Kd = rospy.get_param('joy_to_cmd_vel/kd')
-            
+			try :
+				Kp = rospy.get_param('joy_to_cmd_vel/kp')
+				Ki = rospy.get_param('joy_to_cmd_vel/ki')
+				Kd = rospy.get_param('joy_to_cmd_vel/kd')
+			except :
+			    Kp = 1.0
+			    Ki = 0.4
+			    Kd = 0.3
 			error = x - velocity_mes
 			
 			error_integral += error/frequency
@@ -123,13 +126,8 @@ def asservissement():
 
 
 			elif (x<0):
-				if velocity_mes>0.1:
-					pwm = 6.5
-				elif velocity_mes>0:
-					pwm = 7.52
-				else:
-					pwm=7.5-0.9*x
-					error = 0
+			    pwm=7.5-0.5*x
+			    error = 0
 
 		#	print(z)
 			p.ChangeDutyCycle(5.2-z/0.30)

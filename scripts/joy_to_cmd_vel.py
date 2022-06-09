@@ -96,7 +96,7 @@ def get_velocity(steering):
         
         velocity = -0.001
         
-    elif state.driving_mode == 'STUCK' and time.time()-state.time >5:
+    elif state.driving_mode == 'STUCK' and time.time()-state.time >4:
         state.time = time.time()
         velocity = -0.001
         
@@ -282,7 +282,7 @@ def pure_pursuit_callback(data):
         
         if speed_mode != 0:
             if state.driving_mode == 'STUCK':
-                msg.angular.z = 0
+                msg.angular.z = PP_steering
             pub.publish(msg)
     
 def stanley_control_callback(data):

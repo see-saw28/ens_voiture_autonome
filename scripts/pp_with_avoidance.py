@@ -191,6 +191,7 @@ def load_path_callback(msg):
     global course_y
     global course_speed
     global pub_full_path
+    global msg_path
 
     msg=msg.data.split(" ")
     if (msg[0]=="load" and len(msg)>1):
@@ -351,7 +352,7 @@ def main():
     
     while not rospy.is_shutdown():
         pub_collision.publish(Bool(collision))
-            
+           
         if not collision :
             # Get steering angle
             if len(course_x) != 0 :

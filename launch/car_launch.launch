@@ -1,8 +1,12 @@
 <?xml version="1.0"?>
 <launch>
-    <node pkg="ens_voiture_autonome" name="command" type="command.py" output="screen" launch-prefix="sudo"/>
-    <node pkg="ens_voiture_autonome" name="t265" type="t265.launch" output="screen"/>
-    <node pkg="ens_voiture_autonome" name="localization" type="localization.launch" output="screen"/>
+<arg name="mapping" default="false"/>
+<arg name="ass" default="true"/>
+    <node if="$(arg ass)" pkg="ens_voiture_autonome" name="asservissement" type="asservissement.py"  launch-prefix="sudo"/>
+    <node unless="$(arg ass)" pkg="ens_voiture_autonome" name="command" type="command.py"  launch-prefix="sudo"/>
+    <include file="$(find ens_voiture_autonome)/launch/t265.launch"/>
+    <include unless="$(arg mapping)" file="$(find ens_voiture_autonome)/launch/localization.launch"/>
+    <include if="$(arg mapping)" file="$(find rplidar_ros)/launch/rplidar.launch" />
 </launch>
  
  

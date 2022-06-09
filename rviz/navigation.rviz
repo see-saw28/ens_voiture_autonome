@@ -34,7 +34,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: LaserScan
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -292,10 +292,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 102.32344055175781
+      Scale: 212.8765106201172
       Target Frame: <Fixed Frame>
-      X: 2.1310620307922363
-      Y: 1.8933906555175781
+      X: 3.206803560256958
+      Y: 2.010833501815796
     Saved: ~
 Window Geometry:
   Displays:
@@ -314,4 +314,4 @@ Window Geometry:
     collapsed: false
   Width: 1440
   X: 0
-  Y: 0
+  Y: 77
