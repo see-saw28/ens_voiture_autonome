@@ -327,6 +327,7 @@ def improve_race_line(old_line, inner_border, outer_border):
         # New point which has mid-curvature of prev and next points but may be outside of track
         #print((new_line[i], new_xi))
         new_line[i] = new_xi
+        
     return new_line
 
 
@@ -360,6 +361,7 @@ if __name__ == '__main__':
         rospy.init_node('pure_pursuit_with_avoidance')
         rate = rospy.Rate(15)
         pub_path = rospy.Publisher('mcp_path', Path, queue_size=10)
+        pub_path1 = rospy.Publisher('centerline_path', Path, queue_size=10)
         # display the path to the look ahead point
         msg_path = Path()
         msg_path.header.frame_id = 'map'
@@ -381,8 +383,29 @@ if __name__ == '__main__':
             msg_path.poses.append(pose)
             
         pub_path.publish(msg_path)
+        
+        msg_path1 = Path()
+        msg_path1.header.frame_id = 'map'
+        
+        
+            
+        for i,position in enumerate(center_line):
+            
+            
+            pose = PoseStamped()
+            
+            pose.header.frame_id = "map"
+            pose.header.seq = i
+            
+            print(position)
+            pose.pose.position.x = position[0]
+            pose.pose.position.y = position[1]
+            
+            msg_path1.poses.append(pose)
+            
         while not rospy.is_shutdown():
             pub_path.publish(msg_path)
+            pub_path1.publish(msg_path1)
             rate.sleep()
     except rospy.ROSInterruptException:
         pass
