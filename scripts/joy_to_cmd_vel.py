@@ -116,7 +116,7 @@ def get_velocity(steering):
         velocity = -3
         
     elif collision :
-        velocity = speed_max * obstacle_speed_coef
+        velocity = speed_max*np.exp(-steering**2/sigma2)
     
     elif speed_mode == 1:
         velocity = speed_max

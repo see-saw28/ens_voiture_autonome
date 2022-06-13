@@ -88,7 +88,10 @@ def lidar_callback(data):
         
     # print(ranges[laser_number],alpha,laser_number)
     b = Bool()
-    TTC = (ranges[laser_number]-0.1)/velocity
+    if velocity != 0:
+        TTC = (ranges[laser_number]-0.1)/velocity
+    else :
+        TTC = np.inf
     # print(TTC)
     if TTC<TTC_threshold and TTC >0:
         print('break',TTC)

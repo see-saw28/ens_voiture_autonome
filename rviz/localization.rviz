@@ -10,7 +10,6 @@ Panels:
         - /Axes1
         - /Marker1
         - /Marker2
-        - /Marker2/Status1
         - /Path2
         - /Marker3
         - /Marker4
@@ -207,17 +206,17 @@ Visualization Manager:
       Marker Topic: /finish_line
       Name: Marker
       Namespaces:
-        {}
+        "": true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
-      Enabled: true
+      Enabled: false
       Marker Topic: /trajectory_loaded
       Name: Marker
       Namespaces:
         {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
@@ -255,7 +254,7 @@ Visualization Manager:
       Marker Topic: /local_steering_controller_look_ahead
       Name: Marker
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -287,7 +286,7 @@ Visualization Manager:
       Radius: 0.029999999329447746
       Shaft Diameter: 0.10000000149011612
       Shaft Length: 0.10000000149011612
-      Topic: /pure_pursuit_path
+      Topic: /loaded_path
       Unreliable: false
       Value: true
     - Class: rviz/Marker
@@ -319,7 +318,7 @@ Visualization Manager:
       Marker Topic: /collision_check
       Name: Marker
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: false
     - Alpha: 1
@@ -367,7 +366,7 @@ Visualization Manager:
       Radius: 0.029999999329447746
       Shaft Diameter: 0.10000000149011612
       Shaft Length: 0.10000000149011612
-      Topic: /loaded_path
+      Topic: /mcp_path
       Unreliable: false
       Value: true
   Enabled: true
@@ -398,7 +397,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 10.507913589477539
+      Distance: 12.921125411987305
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -406,9 +405,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.7165082693099976
-        Y: -0.25587064027786255
-        Z: -0.03969794139266014
+        X: 3.3209519386291504
+        Y: -0.4319762885570526
+        Z: -0.043728310614824295
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -416,7 +415,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 5.823576927185059
+      Yaw: 6.223577976226807
     Saved: ~
 Window Geometry:
   Displays:

@@ -191,7 +191,7 @@ def load_path_callback(msg):
     global course_y
     global course_speed
     global pub_full_path
-    global msg_path
+    global msg_path1
 
     msg=msg.data.split(" ")
     if (msg[0]=="load" and len(msg)>1):
@@ -200,33 +200,55 @@ def load_path_callback(msg):
         course_speed = []
         
         # display the path to the look ahead point
-        msg_path = Path()
-        msg_path.header.frame_id = 'map'
+        msg_path1 = Path()
+        msg_path1.header.frame_id = 'map'
         
         
             
-            
+        if 'traj' in msg[1]:   
         
        
-        f = open(rospack.get_path('ens_vision')+f'/paths/{msg[1]}.pckl', 'rb')
-        marker,speeds,orientations,cmd_speeds = pickle.load(f)
-        f.close()
-        for i, pose1 in enumerate(marker.points):
-            path_x.append(pose1.x)
-            path_y.append(pose1.y)
-            course_speed.append(cmd_speeds[i])
+            f = open(rospack.get_path('ens_vision')+f'/paths/{msg[1]}.pckl', 'rb')
+            marker,speeds,orientations,cmd_speeds = pickle.load(f)
+            f.close()
+            for i, pose1 in enumerate(marker.points):
+                path_x.append(pose1.x)
+                path_y.append(pose1.y)
+                course_speed.append(cmd_speeds[i])
+                
+                pose = PoseStamped()
+                
+                pose.header.frame_id = "map"
+                pose.header.seq = i
+                
+                pose.pose.position.x = pose1.x
+                pose.pose.position.y = pose1.y
+                
+                msg_path1.poses.append(pose)
+                
+        elif 'mcp' in msg[1]:   
+        
+       
+            f = open(rospack.get_path('ens_voiture_autonome')+f'/paths/{msg[1]}.npy', 'rb')
+            raceline = np.load(f)
+            f.close()
+            for i, position in enumerate(raceline):
+                path_x.append(position[0])
+                path_y.append(position[1])
+                course_speed.append(2)
+                
+                pose = PoseStamped()
             
-            pose = PoseStamped()
+                pose.header.frame_id = "map"
+                pose.header.seq = i
+                
+                
+                pose.pose.position.x = position[0]
+                pose.pose.position.y = position[1]
+                
+                msg_path1.poses.append(pose)
             
-            pose.header.frame_id = "map"
-            pose.header.seq = i
-            
-            pose.pose.position.x = pose1.x
-            pose.pose.position.y = pose1.y
-            
-            msg_path.poses.append(pose)
-            
-        pub_full_path.publish(msg_path)
+        pub_full_path.publish(msg_path1)
 
         course_x = path_x
         course_y = path_y
@@ -240,7 +262,32 @@ wb = 0.257
 alpha = 0
 velocity = 0.1
 
+def mcp_callback(msg):
+    
+    global course_x
+    global course_y
+    global course_speed
+    global pub_full_path
+    global msg_path
 
+    
+   
+    path_x = []
+    path_y = []
+    course_speed = []
+    
+   
+        
+
+    for pose in msg.poses:
+        path_x.append(pose.pose.position.x)
+        path_y.append(pose.pose.position.y)
+        course_speed.append(1)
+        
+    course_x = path_x
+    course_y = path_y
+        
+    # print('loaded mcp path : ',len(path_x), ' poses')
     
 
     
@@ -330,6 +377,9 @@ def main():
     global steering_angle
     global state
     global pub_full_path
+    global msg_path1
+    
+    msg_path1 = Path()
 
     # Publish
     pub = rospy.Publisher('pure_pursuit_cmd', Twist, queue_size=100)
@@ -341,6 +391,7 @@ def main():
     # rospy.Subscriber('vel', Twist, vel_callback, queue_size=10)
     rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
     rospy.Subscriber('scan', LaserScan, lidar_callback, queue_size=10)
+    rospy.Subscriber('mcp_path', Path, mcp_callback, queue_size=10)
     
     
     pub_marker = rospy.Publisher('pure_pursuit_look_ahead', Marker, queue_size=10)
@@ -392,6 +443,8 @@ def main():
             msg.angular.z = steering_angle
             msg.linear.x = speed
             pub.publish(msg)
+            
+            pub_full_path.publish(msg_path1)
 
         rate.sleep()
 

@@ -428,17 +428,54 @@ def load_path_callback(msg):
         
     
        
-        f = open(rospack.get_path('ens_vision')+f'/paths/{msg[1]}.pckl', 'rb')
-        marker,speeds,orientations,cmd_speeds = pickle.load(f)
-        f.close()
-        for i, pose in enumerate(marker.points):
-            path_x.append(pose.x)
-            path_y.append(pose.y)
-            course_speed.append(cmd_speeds[i])
+        if 'traj' in msg[1]:   
+        
+       
+            f = open(rospack.get_path('ens_vision')+f'/paths/{msg[1]}.pckl', 'rb')
+            marker,speeds,orientations,cmd_speeds = pickle.load(f)
+            f.close()
+            for i, pose1 in enumerate(marker.points):
+                path_x.append(pose1.x)
+                path_y.append(pose1.y)
+                course_speed.append(cmd_speeds[i])
+                
+                pose = PoseStamped()
+                
+                pose.header.frame_id = "map"
+                pose.header.seq = i
+                
+                pose.pose.position.x = pose1.x
+                pose.pose.position.y = pose1.y
+                
+                # msg_path.poses.append(pose)
+                
+        elif 'mcp' in msg[1]:   
+        
+       
+            f = open(rospack.get_path('ens_voiture_autonome')+f'/paths/{msg[1]}.npy', 'rb')
+            raceline = np.load(f)
+            f.close()
+            for i, position in enumerate(raceline):
+                path_x.append(position[0])
+                path_y.append(position[1])
+                course_speed.append(2)
+                
+                pose = PoseStamped()
+            
+                pose.header.frame_id = "map"
+                pose.header.seq = i
+                
+                
+                pose.pose.position.x = position[0]
+                pose.pose.position.y = position[1]
+                
+                # msg_path.poses.append(pose)
+            
+        # pub_full_path.publish(msg_path)
 
         course_x = path_x
         course_y = path_y
-        print('load path')
+        print('traj loaded')
         
         
 

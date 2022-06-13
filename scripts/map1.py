@@ -14,8 +14,8 @@ Created on Sat Jun 11 15:29:57 2022
 """
 import matplotlib.pyplot as plt
 import numpy as np
-from skimage.feature import peak_local_max
-from skimage.morphology import watershed
+#from skimage.feature import peak_local_max
+#from skimage.morphology import watershed
 from scipy import ndimage,signal
 import cv2 as cv
 import rospy
@@ -39,7 +39,11 @@ from shapely.geometry import Point, Polygon
 from shapely.geometry.polygon import LinearRing, LineString
 from skimage.morphology import medial_axis, skeletonize
 
-with open(r'big_map_hr.yaml') as file:
+
+k1999 = False
+TUM = True
+
+with open(r'cachan.yaml') as file:
     # The FullLoader parameter handles the conversion from YAML
     # scalar values to Python the dictionary format
     param = yaml.load(file, Loader=yaml.FullLoader)
@@ -116,7 +120,7 @@ while len(x)>0:
     d = [math.sqrt(idx ** 2 + idy ** 2)for (idx, idy) in zip(dx, dy)]
     ind = d.index(min(d))
     
-    if min(d)<10 and i%5==0:
+    if min(d)<10 and i%1==0:
         xs.append(x.pop(ind))
         ys.append(y.pop(ind))
     else :
@@ -133,7 +137,7 @@ ax1.imshow(imgResult)
 edt = ndimage.distance_transform_edt(ima)
 ax2.imshow(edt)
 ax3.imshow(f1)
-ax4.plot(xs,ys, 'r+')
+ax4.plot(xs,ys, 'r')
 # ax4.plot(Y,X, 'b+')
 ax4.imshow(imgResult)
 
@@ -148,8 +152,8 @@ for i in range(len(xs)):
 
 ax5.plot(xm,ym, 'g')
 
-xf = signal.savgol_filter(xm, 15,8)
-yf = signal.savgol_filter(ym, 15,8)
+xf = signal.savgol_filter(xm, 25,3)
+yf = signal.savgol_filter(ym, 25,3)
 
 ax6.plot(xf,yf, 'g')
 
@@ -159,6 +163,7 @@ ym = yf
 center_line=[]
 inner_border=[]
 outer_border=[]
+trackline = []
 
 width = 3
 
@@ -171,25 +176,98 @@ for i in range(len(xm)):
     per_vect = np.array((vect_norm[1],-vect_norm[0]))
     inner_border.append((xm[i],ym[i])-per_vect*resolution*edt[ys[i],xs[i]])
     outer_border.append((xm[i],ym[i])+per_vect*resolution*edt[ys[i],xs[i]])
+    # trackline.append([xm[i],ym[i],resolution*edt[ys[i],xs[i]],resolution*edt[ys[i],xs[i]]])
+    trackline.append([xm[i],ym[i],0.4,0.4])
      
 center_line.append(center_line[0])
 inner_border.append(inner_border[0])
-outer_border.append(outer_border[0])   
-
-print(min(outer_border[1]),min(inner_border[1]))
-
-if min(outer_border[0])>min(inner_border[0]):
-    a = outer_border
-    outer_border = inner_border
-    inner_border = a
+outer_border.append(outer_border[0])  
+# trackline.append(trackline[0])   
+trackline = np.array(trackline)
 
 
-l_center_line = LineString(center_line)
-l_inner_border = LineString(inner_border)
-l_outer_border = LineString(outer_border)
-road_poly = Polygon(np.vstack((l_outer_border, np.flipud(l_inner_border))))
-print("Is loop/ring? ", l_center_line.is_ring)
-road_poly
+outer_border = signal.savgol_filter(outer_border, 25,4,axis=0)
+inner_border = signal.savgol_filter(inner_border, 25,4,axis=0)
+# trackline[:,3] = signal.savgol_filter(trackline[:,3], 15,2,axis=0)
+
+import os
+import sys
+import matplotlib.pyplot as plt
+sys.path.append(os.path.dirname(__file__))
+from trajectory_planning_helpers.calc_splines import calc_splines
+from trajectory_planning_helpers.opt_min_curv import opt_min_curv
+
+# --- PARAMETERS ---
+CLOSED = True
+
+# --- IMPORT TRACK ---
+# load data from csv file
+
+# get coords and track widths out of array
+reftrack = np.array(trackline)
+psi_s = 0.0
+psi_e = 0.0
+
+if TUM:
+# --- CALCULATE MIN CURV ---
+    if CLOSED:
+        coeffs_x, coeffs_y, M, normvec_norm = calc_splines(path=np.vstack((reftrack[:, 0:2], reftrack[0, 0:2])))
+    else:
+        reftrack = reftrack[200:600, :]
+        coeffs_x, coeffs_y, M, normvec_norm = calc_splines(path=reftrack[:, 0:2],
+                                                           psi_s=psi_s,
+                                                           psi_e=psi_e)
+    
+        # extend norm-vec to same size of ref track (quick fix for testing only)
+        normvec_norm = np.vstack((normvec_norm[0, :], normvec_norm))
+    
+    alpha_mincurv, curv_error_max = opt_min_curv(reftrack=reftrack,
+                                                 normvectors=normvec_norm,
+                                                 A=M,
+                                                 kappa_bound=0.66,
+                                                 w_veh=0.2,
+                                                 closed=CLOSED,
+                                                 psi_s=psi_s,
+                                                 psi_e=psi_e)
+    
+    # --- PLOT RESULTS ---
+    path_result = reftrack[:, 0:2] + normvec_norm * np.expand_dims(alpha_mincurv, axis=1)
+    bound1 = reftrack[:, 0:2] - normvec_norm * np.expand_dims(reftrack[:, 2], axis=1)
+    bound2 = reftrack[:, 0:2] + normvec_norm * np.expand_dims(reftrack[:, 3], axis=1)
+    
+    
+    plt.figure(figsize=(8,6))
+    size = 0.5
+    dx,dy = reftrack[1,0] - reftrack[0,0], reftrack[1,1] - reftrack[0,1]
+    dx,dy = dx/np.sqrt(dx**2+dy**2),dy/np.sqrt(dx**2+dy**2)
+    plt.arrow(reftrack[0,0], reftrack[0,1], size * dx, size * dy, head_width=0.1, head_length=0.2, fc='k', ec='k')
+    plt.plot(reftrack[:, 0], reftrack[:, 1], ":")
+    plt.plot(path_result[:, 0], path_result[:, 1])
+    plt.plot(bound1[:, 0], bound1[:, 1], 'k')
+    plt.plot(bound2[:, 0], bound2[:, 1], 'k')
+    
+    plt.axis('equal')
+    plt.show()
+    
+    
+    
+    
+    print(min(outer_border[1]),min(inner_border[1]))
+    
+    if min(outer_border[0])>min(inner_border[0]):
+        a = outer_border
+        outer_border = inner_border
+        inner_border = a
+    
+    
+    l_center_line = LineString(center_line)
+    l_inner_border = LineString(inner_border)
+    l_outer_border = LineString(outer_border)
+    road_poly = Polygon(np.vstack((l_outer_border, np.flipud(l_inner_border))))
+    print("Is loop/ring? ", l_center_line.is_ring)
+    road_poly
+    
+#%% K1999 algorithm inner and outer border plot
 
 def plot_coords(ax, ob):                                                        
     x, y = ob.xy                                                                
@@ -219,6 +297,7 @@ def print_border(ax, waypoints, inner_border_waypoints, outer_border_waypoints):
 fig1 = plt.figure(1, figsize=(16, 10))
 ax = fig1.add_subplot(111, facecolor='black')
 plt.axis('equal')
+
 print_border(ax, center_line, inner_border, outer_border)
 
 
@@ -270,7 +349,7 @@ XI_ITERATIONS=4
 
 # Number of times to scan the entire race track to iterate
 # 500 will get a good start, 1500 will be closer to optimal result
-LINE_ITERATIONS=500
+LINE_ITERATIONS=1000
 
 def improve_race_line(old_line, inner_border, outer_border):
     '''Use gradient descent, inspired by K1999, to find the racing line'''
@@ -330,31 +409,57 @@ def improve_race_line(old_line, inner_border, outer_border):
         
     return new_line
 
+if k1999 :
+
+    print(len(center_line))
+    # start along centerline of track
+    race_line = copy.deepcopy(center_line[:-1])  # Use this for centerline being outer bound
+    for i in range(LINE_ITERATIONS):
+        race_line = improve_race_line(race_line, inner_border, outer_border)
+        if i % 20 == 0: print("Iteration %d" % i)
+    
+    
+    
+    
+    # need to put duplicate point race_line[0] at race_line[-1] to make a closed loops
+    loop_race_line = np.append(race_line, [race_line[0]], axis=0)
+    
+    # These should be the same
+    print("These should be the same: ", (len(center_line), loop_race_line.shape))
+    print("Original centerline length: %0.2f" % l_center_line.length)
+    print("New race line length: %0.2f" % LineString(loop_race_line).length)
+    
+    fig = plt.figure(1, figsize=(16, 10))
+    ax = fig.add_subplot(111, facecolor='black')
+    plt.axis('equal')
+    print_border(ax, loop_race_line, inner_border, outer_border)
+    
+    def check_file(filePath):
+        if os.path.exists(filePath):
+            numb = 1
+            while True:
+                newPath = "{0}_{2}{1}".format(*os.path.splitext(filePath) + (numb,))
+                if os.path.exists(newPath):
+                    numb += 1
+                else:
+                    return newPath
+        return filePath 
+       
+       
+    import rospkg
+    rospack = rospkg.RosPack()
+         
+    filename=check_file(rospack.get_path('ens_voiture_autonome')+'/paths/mcp.npy')
+    
+    f = open(filename, 'wb')
+    np.save(f, loop_race_line)
+    f.close()
+    
+    print('saved mcp path :', filename)
+    
 
 
-print(len(center_line))
-# start along centerline of track
-race_line = copy.deepcopy(center_line[:-1])  # Use this for centerline being outer bound
-for i in range(LINE_ITERATIONS):
-    race_line = improve_race_line(race_line, inner_border, outer_border)
-    if i % 20 == 0: print("Iteration %d" % i)
-
-
-
-
-# need to put duplicate point race_line[0] at race_line[-1] to make a closed loops
-loop_race_line = np.append(race_line, [race_line[0]], axis=0)
-
-# These should be the same
-print("These should be the same: ", (len(center_line), loop_race_line.shape))
-print("Original centerline length: %0.2f" % l_center_line.length)
-print("New race line length: %0.2f" % LineString(loop_race_line).length)
-
-fig = plt.figure(1, figsize=(16, 10))
-ax = fig.add_subplot(111, facecolor='black')
-plt.axis('equal')
-print_border(ax, loop_race_line, inner_border, outer_border)
-
+"""
 if __name__ == '__main__':
     try:
         # init node
@@ -410,5 +515,5 @@ if __name__ == '__main__':
     except rospy.ROSInterruptException:
         pass
 
-
+"""
 

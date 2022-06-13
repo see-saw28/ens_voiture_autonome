@@ -12,6 +12,7 @@ Created on Tue May 31 13:29:53 2022
 import time
 import rospy
 import numpy as np
+import math
 import os
 from getkey import getkey, keys
 
@@ -50,22 +51,30 @@ z = 0.0
 
 velocity_mes = 0.0
 
+wb = 0.257
+
 old_x=1
+
 def callback(msg):
 #	print('test')
 	global old_x
 	global x
 	global z
 	x = msg.linear.x
-	z = msg.angular.z
+	z = 1.1*msg.angular.z
 #	print(x,z)
 	
 def odom_callback(data):
     
     global velocity_mes
+    
     velocity_mes = -data.twist.twist.linear.x
-    msg = Float32()
-    msg.data = velocity_mes
+    
+    msg = Twist()
+    msg.linear.x = velocity_mes
+    if velocity_mes > 0.1 :
+        steer = math.atan2(data.twist.twist.angular.z * wb, velocity_mes)
+        msg.angular.z = steer
     pub_vel.publish(msg)
 	
 
@@ -82,7 +91,7 @@ def asservissement():
 	rospy.init_node('command', anonymous=False)
 
 	pub = rospy.Publisher('/pwm',Float32,queue_size=5)
-	pub_vel = rospy.Publisher('/vel',Float32,queue_size=5)
+	pub_vel = rospy.Publisher('/vel',Twist,queue_size=5)
 	rospy.Subscriber("/cmd_vel", Twist, callback) #/cmd_vel /key_vel /ps3_vel /joy
 	rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
 	

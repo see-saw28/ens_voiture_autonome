@@ -75,7 +75,7 @@ def lidar_callback(data):
     angles = np.linspace(angle_min,angle_max,n)
     xy=[]
     
-    ranges[ranges>12]=0
+    ranges[ranges>12]=12
     
     max_distance = 4
     
