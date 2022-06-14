@@ -20,6 +20,7 @@ Panels:
         - /Marker8
         - /Marker9
         - /Path5
+        - /Axes2
       Splitter Ratio: 0.5
     Tree Height: 566
   - Class: rviz/Selection
@@ -206,7 +207,7 @@ Visualization Manager:
       Marker Topic: /finish_line
       Name: Marker
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -242,8 +243,16 @@ Visualization Manager:
       Unreliable: false
       Value: true
     - Class: rviz/Marker
-      Enabled: true
+      Enabled: false
       Marker Topic: /aeb_marker
+      Name: Marker
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: false
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /follow_the_gap_marker
       Name: Marker
       Namespaces:
         "": true
@@ -251,20 +260,12 @@ Visualization Manager:
       Value: true
     - Class: rviz/Marker
       Enabled: true
-      Marker Topic: /local_steering_controller_look_ahead
+      Marker Topic: /follow_the_gap_obstacle_marker
       Name: Marker
       Namespaces:
-        {}
+        "": true
       Queue Size: 100
       Value: true
-    - Class: rviz/Marker
-      Enabled: false
-      Marker Topic: /stanley_controller_look_ahead
-      Name: Marker
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: false
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
@@ -302,7 +303,7 @@ Visualization Manager:
       Marker Topic: /pure_pursuit_look_ahead
       Name: Marker
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -369,6 +370,15 @@ Visualization Manager:
       Topic: /mcp_path
       Unreliable: false
       Value: true
+    - Alpha: 1
+      Class: rviz/Axes
+      Enabled: true
+      Length: 0.20000000298023224
+      Name: Axes
+      Radius: 0.05000000074505806
+      Reference Frame: marker_0
+      Show Trail: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -397,7 +407,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 12.921125411987305
+      Distance: 9.442097663879395
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -405,9 +415,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 3.3209519386291504
-        Y: -0.4319762885570526
-        Z: -0.043728310614824295
+        X: -1.185083031654358
+        Y: -1.307499885559082
+        Z: -0.04283296689391136
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -415,7 +425,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 6.223577976226807
+      Yaw: 3.0835721492767334
     Saved: ~
 Window Geometry:
   Displays:

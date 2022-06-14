@@ -39,11 +39,18 @@ from shapely.geometry import Point, Polygon
 from shapely.geometry.polygon import LinearRing, LineString
 from skimage.morphology import medial_axis, skeletonize
 
-
+save = False
 k1999 = False
 TUM = True
 
-with open(r'cachan.yaml') as file:
+plt.close('all')
+
+import rospkg
+rospack = rospkg.RosPack()
+
+map_name = 'test_ring'
+
+with open(rospack.get_path('ens_voiture_autonome')+f'/map/{map_name}.yaml') as file:
     # The FullLoader parameter handles the conversion from YAML
     # scalar values to Python the dictionary format
     param = yaml.load(file, Loader=yaml.FullLoader)
@@ -51,7 +58,7 @@ with open(r'cachan.yaml') as file:
 resolution = param['resolution']
 origin = param['origin']
 #%% Centerline extraction
-with open(param['image'], 'rb') as pgmf:
+with open(rospack.get_path('ens_voiture_autonome')+'/map/'+param['image'], 'rb') as pgmf:
     im = plt.imread(pgmf)
     
 # plt.imshow(im)
@@ -61,18 +68,18 @@ with open(param['image'], 'rb') as pgmf:
 ima = np.array(im)
 ima[ima<254]=0
 
-K = np.ones((6,6))/36
+conv_size = 5
+
+K = np.ones((conv_size,conv_size))/conv_size**2
 
 f1 = signal.convolve2d(ima, K, boundary='symm', mode='same')
 
-f1[f1<253]=0
-f1[f1>=253]=1
+# f1 = ima
 
-f1.astype
+threshold = 150
 
-edt = ndimage.distance_transform_edt(ima)
-
-edt1 = copy.deepcopy(edt)
+f1[f1<threshold]=0
+f1[f1>=threshold]=1
 
 
 # Compute the medial axis (skeleton) and the distance transform
@@ -134,9 +141,10 @@ fig, ((ax1, ax2, ax3), (ax4, ax5, ax6)) = plt.subplots(2, 3)
 fig.suptitle('Sharing x per column, y per row')
 imgResult = cv.cvtColor(ima,cv.COLOR_GRAY2BGR)
 ax1.imshow(imgResult)
-edt = ndimage.distance_transform_edt(ima)
-ax2.imshow(edt)
-ax3.imshow(f1)
+# imgResult1 = cv.cvtColor(f1,cv.COLOR_GRAY2BGR)
+edt, indices = ndimage.distance_transform_edt(f1, return_indices=True)
+ax2.imshow(f1)
+ax3.imshow(edt)
 ax4.plot(xs,ys, 'r')
 # ax4.plot(Y,X, 'b+')
 ax4.imshow(imgResult)
@@ -155,29 +163,40 @@ ax5.plot(xm,ym, 'g')
 xf = signal.savgol_filter(xm, 25,3)
 yf = signal.savgol_filter(ym, 25,3)
 
+xsf = signal.savgol_filter(xs, 25,3)
+ysf = signal.savgol_filter(ys, 25,3)
+
+
 ax6.plot(xf,yf, 'g')
 
 xm = xf
 ym = yf
+
+zeros = np.where(f1==0)
 
 center_line=[]
 inner_border=[]
 outer_border=[]
 trackline = []
 
-width = 3
+width = 2
+border_width = 0.40
 
 for i in range(len(xm)):
     
-    vect = (xm[i]-xm[(i+width)%len(xm)],ym[i]-ym[(i+width)%len(xm)])
+    vect = (xm[(i-width)%len(xm)]-xm[(i+width)%len(xm)],ym[(i-width)%len(xm)]-ym[(i+width)%len(xm)])
     vect_norm = vect/np.sqrt(vect[0]**2 + vect[1]**2)
     
     center_line.append((xm[i],ym[i]))
     per_vect = np.array((vect_norm[1],-vect_norm[0]))
+    # distance = np.sqrt(np.sum((np.array(zeros)-np.array(([ysf[i]],[xsf[i]])))**2,axis=0)).min()
+    # inner_border.append((xm[i],ym[i])-per_vect*resolution*distance)
+    # outer_border.append((xm[i],ym[i])+per_vect*resolution*distance)
+    # print(distance,edt[round(ys[i]),round(xs[i])])
     inner_border.append((xm[i],ym[i])-per_vect*resolution*edt[ys[i],xs[i]])
     outer_border.append((xm[i],ym[i])+per_vect*resolution*edt[ys[i],xs[i]])
     # trackline.append([xm[i],ym[i],resolution*edt[ys[i],xs[i]],resolution*edt[ys[i],xs[i]]])
-    trackline.append([xm[i],ym[i],0.4,0.4])
+    trackline.append([xm[i],ym[i],border_width,border_width])
      
 center_line.append(center_line[0])
 inner_border.append(inner_border[0])
@@ -188,7 +207,8 @@ trackline = np.array(trackline)
 
 outer_border = signal.savgol_filter(outer_border, 25,4,axis=0)
 inner_border = signal.savgol_filter(inner_border, 25,4,axis=0)
-# trackline[:,3] = signal.savgol_filter(trackline[:,3], 15,2,axis=0)
+trackline[:,3] = signal.savgol_filter(trackline[:,3], 25,4,axis=0)
+trackline[:,2] = signal.savgol_filter(trackline[:,2], 25,4,axis=0)
 
 import os
 import sys
@@ -243,13 +263,35 @@ if TUM:
     plt.arrow(reftrack[0,0], reftrack[0,1], size * dx, size * dy, head_width=0.1, head_length=0.2, fc='k', ec='k')
     plt.plot(reftrack[:, 0], reftrack[:, 1], ":")
     plt.plot(path_result[:, 0], path_result[:, 1])
+    # ax4.plot(path_result[:, 0], path_result[:, 1])
     plt.plot(bound1[:, 0], bound1[:, 1], 'k')
     plt.plot(bound2[:, 0], bound2[:, 1], 'k')
     
     plt.axis('equal')
     plt.show()
     
-    
+    def check_file(filePath):
+        if os.path.exists(filePath):
+            numb = 1
+            while True:
+                newPath = "{0}_{2}{1}".format(*os.path.splitext(filePath) + (numb,))
+                if os.path.exists(newPath):
+                    numb += 1
+                else:
+                    return newPath
+        return filePath 
+       
+    if save :  
+        import rospkg
+        rospack = rospkg.RosPack()
+             
+        filename=check_file(rospack.get_path('ens_voiture_autonome')+'/paths/mcp.npy')
+        
+        f = open(filename, 'wb')
+        np.save(f, path_result)
+        f.close()
+        
+        print('saved mcp path :', filename)
     
     
     print(min(outer_border[1]),min(inner_border[1]))
@@ -266,6 +308,8 @@ if TUM:
     road_poly = Polygon(np.vstack((l_outer_border, np.flipud(l_inner_border))))
     print("Is loop/ring? ", l_center_line.is_ring)
     road_poly
+    
+    
     
 #%% K1999 algorithm inner and outer border plot
 
@@ -445,17 +489,17 @@ if k1999 :
                     return newPath
         return filePath 
        
-       
-    import rospkg
-    rospack = rospkg.RosPack()
-         
-    filename=check_file(rospack.get_path('ens_voiture_autonome')+'/paths/mcp.npy')
-    
-    f = open(filename, 'wb')
-    np.save(f, loop_race_line)
-    f.close()
-    
-    print('saved mcp path :', filename)
+    if save:
+        import rospkg
+        rospack = rospkg.RosPack()
+             
+        filename=check_file(rospack.get_path('ens_voiture_autonome')+'/paths/mcp.npy')
+        
+        f = open(filename, 'wb')
+        np.save(f, loop_race_line)
+        f.close()
+        
+        print('saved mcp path :', filename)
     
 
 

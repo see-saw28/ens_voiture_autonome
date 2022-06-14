@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<launch>
+    <node pkg="ens_voiture_autonome" name="follow_the_gap" type="follow_the_gap.py" output="screen" />
+        
+</launch>
+

@@ -22,13 +22,53 @@ from nav_msgs.msg import Path, Odometry
 from visualization_msgs.msg import Marker
 from std_msgs.msg import Header, ColorRGBA, String
 from tf.transformations import quaternion_from_euler
+from dynamic_reconfigure.server import Server
+from ens_voiture_autonome.cfg import FTGConfig
 
-
+max_distance = 2.0
+cut_angle = np.pi/2
+conv_width = 2
+wheelbase_length = 0.257
+max_steering_angle = 0.3
+radius = 0.40
+max_velocity=3.0
+obstacle_velocity=0.5
+near_distance=0.7
+max_velocity_distance=3.0
+direct_steering=False
     
 def odom_callback(data):
     
     global velocity
     velocity = -data.twist.twist.linear.x
+    
+def callback(config, level):
+    global max_distance
+    global cut_angle
+    global conv_width
+    global wheelbase_length
+    global max_steering_angle
+    global radius
+    global max_velocity
+    global obstacle_velocity
+    global near_distance
+    global max_velocity_distance
+    global direct_steering
+    
+    max_distance=config['max_distance']
+    cut_angle=config['cut_angle']
+    conv_width=config['conv_width']
+    wheelbase_length=config['wheelbase_length']
+    max_steering_angle=config['max_steering_angle']
+    radius=config['radius']
+    max_velocity=config['max_velocity']
+    obstacle_velocity=config['obstacle_velocity']
+    near_distance=config['near_distance']
+    max_velocity_distance=config['max_velocity_distance']
+    direct_steering=config['direct_steering']
+            
+    
+    return config
 
 def main():
 
@@ -47,6 +87,7 @@ def main():
     pub_marker = rospy.Publisher('follow_the_gap_marker', Marker, queue_size=10)
     pub_marker1 = rospy.Publisher('follow_the_gap_obstacle_marker', Marker, queue_size=10)
     pub = rospy.Publisher('follow_the_gap_cmd', Twist, queue_size=10)
+    srv = Server(FTGConfig, callback)
     rospy.spin()
     
 def publish_marker(pub, x, y, theta, collide=False):
@@ -73,24 +114,24 @@ def lidar_callback(data):
     # print(angle_min, angle_max)
     n = len(ranges)
     angles = np.linspace(angle_min,angle_max,n)
-    xy=[]
+    
     
     ranges[ranges>12]=12
     
-    max_distance = 4
+    
     
     ranges[ranges>max_distance]=max_distance
-    l=2
-    cut_angle = np.pi/4
+    
+
     new_ranges=np.zeros(n)
     for i,angle in enumerate(angles):
         if abs(angle)<cut_angle:
             #convolution
-            new_ranges[i] = np.mean(ranges[max(0,i-l):min(i+l+1,n)])
+            new_ranges[i] = np.mean(ranges[max(0,i-conv_width):min(i+conv_width+1,n)])
     
     
-    closest_dist = min(ranges[ranges!=0])
-    closest_dist_index = list(ranges).index(closest_dist)
+    closest_dist = min(new_ranges[new_ranges!=0])
+    closest_dist_index = list(new_ranges).index(closest_dist)
     closest_dist_angle = angle_increment * closest_dist_index + angle_min
     
     x = -closest_dist * np.cos(closest_dist_angle)
@@ -98,14 +139,13 @@ def lidar_callback(data):
     publish_marker(pub_marker1, x, y, closest_dist_angle, collide=True)
     # print(closest_dist, closest_dist_index,closest_dist_angle)
     
-    # eliminate all points in the bubble
-    radius = 0.15
+    
     
     bubble_number = int(np.ceil(radius / (closest_dist * angle_increment)))
           
     for i in range(bubble_number):
-        new_ranges[closest_dist_index+i] = 0
-        new_ranges[closest_dist_index-i] = 0
+        new_ranges[(closest_dist_index+i)%n] = 0
+        new_ranges[(closest_dist_index-i)%n] = 0
         
     # find the max gap in free space
     
@@ -154,32 +194,32 @@ def lidar_callback(data):
     publish_marker(pub_marker, x, y, angle)
     
     
-    wheelbase_length = 0.257
-    max_steering_angle = 0.3
+
     
     # publish steering command
     msg = Twist()
     
+    if direct_steering:
     # Raw angle from the point
-    delta = np.clip(angle, -max_steering_angle, max_steering_angle)
-    msg.angular.z = delta
+        delta = np.clip(angle, -max_steering_angle, max_steering_angle)
+        msg.angular.z = delta
     
-   
+    else :
     # Steering as PP
-    delta = math.atan2(2.0 * wheelbase_length * math.sin(angle) / current_max, 1.0)
-    delta = np.clip(delta, -max_steering_angle, max_steering_angle)
-    msg.angular.z = delta
+        delta = math.atan2(2.0 * wheelbase_length * math.sin(angle) / current_max, 1.0)
+        delta = np.clip(delta, -max_steering_angle, max_steering_angle)
+        msg.angular.z = delta
     
     
     
-    if current_max < 1.0 :
-        speed = 0.5
+    if current_max < near_distance :
+        speed = obstacle_velocity
         
-    elif current_max < 3.0 :
+    elif current_max < max_velocity_distance :
         speed = current_max
         
     else :
-        speed = 3.0
+        speed = max_velocity
         
     msg.linear.x = speed
     

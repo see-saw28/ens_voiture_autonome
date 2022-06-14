@@ -91,6 +91,7 @@ generate_messages(
 # Generate dynamic reconfigure parameters in the 'cfg' folder
 generate_dynamic_reconfigure_options(
   cfg/Controller.cfg
+  cfg/FTG.cfg
   
 )
 
