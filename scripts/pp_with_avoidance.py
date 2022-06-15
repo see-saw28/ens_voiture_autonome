@@ -44,16 +44,25 @@ from sensor_msgs.msg import LaserScan
 import tf
 import rospkg
 import pickle
+from dynamic_reconfigure.server import Server
+from ens_voiture_autonome.cfg import PurePursuitConfig
 
 ### Tuning settings #############################
 
 k = 0.4  # Look forward gain (Dynamic look-ahead)
 look_ahead_dist = 0.6  # Look-ahead distance
+
+k_obstacle = 0.4  # Look forward gain (Dynamic look-ahead)
+look_ahead_dist_obstacle = 0.6  # Look-ahead distance
+
 lidar_look_ahead_dist = 1.0
+steering_angle = 0.0
+
 wheelbase_length = 0.257  # wheel base of vehicle [m]
 max_steering_angle = 0.30 # rad
-vitesse_max=2
+radius = 0.15 # m
 
+detect_collision = False
 #################################################
 
 # Path point storage
@@ -71,8 +80,6 @@ class State:
         self.y = y
         self.yaw = yaw
         self.v = v
-        self.driving_mode = 'DRIVE'
-        self.time = time.time()
 
 # initial state
 state = State(x=0.0, y=0.0, yaw=0.0, v=0.0)
@@ -112,13 +119,6 @@ def pure_pursuit_control(state, course_x, course_y):
     # Dynamic look-ahead distance
     dyn_look_ahead_dist = k * abs(state.v) + look_ahead_dist
     
-    try :
-        k_obstacle = rospy.get_param('joy_to_cmd_vel/k_obstacle')
-        look_ahead_dist_obstacle = rospy.get_param('joy_to_cmd_vel/look_ahead_dist_obstacle')
-        
-    except:
-        k_obstacle = 0.4  # Look forward gain (Dynamic look-ahead)
-        look_ahead_dist_obstacle = 0.6  # Look-ahead distance
     
     lidar_look_ahead_dist = look_ahead_dist_obstacle + k_obstacle * state.v - 0.235*np.cos(alpha)
 
@@ -142,13 +142,6 @@ def calc_target_index(state, course_x, course_y):
     global k
     global look_ahead_dist
     
-    try :
-        k = rospy.get_param('joy_to_cmd_vel/k_pp')
-        look_ahead_dist = rospy.get_param('joy_to_cmd_vel/look_ahead_dist')
-        
-    except:
-        k = 0.4  # Look forward gain (Dynamic look-ahead)
-        look_ahead_dist = 0.6  # Look-ahead distance
 
     dyn_look_ahead_dist = k * state.v + look_ahead_dist
     # search nearest point index
@@ -165,12 +158,40 @@ def calc_target_index(state, course_x, course_y):
         
         if ind >len(course_x)*2:
             ind = ind_car
-            print('too far away')
+            rospy.loginfo('too far away')
             break
           
     
     return ind%len(course_x), ind_car
 
+
+def callback(config, level):
+    global k
+    global look_ahead_dist
+    global k_obstacle
+    global look_ahead_dist_obstacle
+    global wheelbase_length
+    global max_steering_angle
+    global radius
+    global detect_collision
+    
+    
+    k = config['k']  # Look forward gain (Dynamic look-ahead)
+    look_ahead_dist = config['look_ahead_dist']  # Look-ahead distance
+
+    k_obstacle = config['k_obstacle'] # Look forward gain (Dynamic look-ahead)
+    look_ahead_dist_obstacle = config['look_ahead_dist_obstacle']  # Look-ahead distance
+
+    wheelbase_length = config['wheelbase_length']  # wheel base of vehicle [m]
+    max_steering_angle = config['max_steering_angle'] # rad
+    radius = config['radius'] # m
+
+    detect_collision = config['detect_collision']
+    
+    
+            
+    
+    return config
 
 def update_state_callback(data):
 
@@ -252,15 +273,10 @@ def load_path_callback(msg):
 
         course_x = path_x
         course_y = path_y
-        print('traj loaded')
+        rospy.loginfo('traj loaded')
         
 
-aeb_distance = 0.7
-TTC_threshold = 0.6
 
-wb = 0.257
-alpha = 0
-velocity = 0.1
 
 def mcp_callback(msg):
     
@@ -287,7 +303,7 @@ def mcp_callback(msg):
     course_x = path_x
     course_y = path_y
         
-    # print('loaded mcp path : ',len(path_x), ' poses')
+    # rospy.loginfo('loaded mcp path : ',len(path_x), ' poses')
     
 
     
@@ -295,7 +311,7 @@ def odom_callback(data):
     
     global state
     state.v = -data.twist.twist.linear.x
-    # print(state.v)
+    # rospy.loginfo(state.v)
     
 
 
@@ -310,28 +326,30 @@ def lidar_callback(data):
     angle_max = data.angle_max
     angle_increment = data.angle_increment
     ranges = data.ranges
-    # print(angle_min, angle_max)
+    # rospy.loginfo(angle_min, angle_max)
     
-    alpha = np.arcsin(lidar_look_ahead_dist*np.tan(steering_angle)/(2*wb))
+    if detect_collision:
     
-    try :
-        laser_number = int(alpha/angle_increment)
+        alpha = np.arcsin(lidar_look_ahead_dist*np.tan(steering_angle)/(2*wheelbase_length))
         
-    except:
-        laser_number = 0
-    
-    radius = 0.15
-    number_of_check = int(radius / (0.5*angle_increment))
-
-    for i in range(laser_number-number_of_check, laser_number+number_of_check):
-        # if ranges[i]*abs(i-laser_number)<radius:
-            # print(ranges[i], lidar_look_ahead_dist)
-        if ranges[i]<lidar_look_ahead_dist and ranges[i]*abs(i-laser_number)*angle_increment<radius:
-            collision = True
-            break
+        try :
+            laser_number = int(alpha/angle_increment)
             
-        else :
-            collision = False
+        except:
+            laser_number = 0
+        
+        
+        number_of_check = int(radius / (0.5*angle_increment))
+    
+        for i in range(laser_number-number_of_check, laser_number+number_of_check):
+            # if ranges[i]*abs(i-laser_number)<radius:
+                # rospy.loginfo(ranges[i], lidar_look_ahead_dist)
+            if ranges[i]<lidar_look_ahead_dist and ranges[i]*abs(i-laser_number)*angle_increment<radius:
+                collision = True
+                break
+                
+            else :
+                collision = False
             
     
     
@@ -383,28 +401,30 @@ def main():
 
     # Publish
     pub = rospy.Publisher('pure_pursuit_cmd', Twist, queue_size=100)
+    pub_marker = rospy.Publisher('pure_pursuit_look_ahead', Marker, queue_size=10)
+    pub_path = rospy.Publisher('pure_pursuit_path', Path, queue_size=10)
+    pub_full_path = rospy.Publisher('loaded_path', Path, queue_size=10)
+    
+    pub_collision = rospy.Publisher('collision', Bool, queue_size=10)
+    pub_collision_marker = rospy.Publisher('collision_check', Marker, queue_size=10)
 
     # Get current state of truck
     #rospy.Subscriber('pf/viz/inferred_pose', PoseStamped, update_state_callback, queue_size=10)
     rospy.Subscriber('amcl_pose', PoseWithCovarianceStamped, update_state_callback, queue_size=100)
     rospy.Subscriber('syscommand', String, load_path_callback, queue_size=10)
-    # rospy.Subscriber('vel', Twist, vel_callback, queue_size=10)
     rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
     rospy.Subscriber('scan', LaserScan, lidar_callback, queue_size=10)
     rospy.Subscriber('mcp_path', Path, mcp_callback, queue_size=10)
     
+    srv = Server(PurePursuitConfig, callback)
     
-    pub_marker = rospy.Publisher('pure_pursuit_look_ahead', Marker, queue_size=10)
-    pub_collision_marker = rospy.Publisher('collision_check', Marker, queue_size=10)
-    pub_path = rospy.Publisher('pure_pursuit_path', Path, queue_size=10)
-    pub_full_path = rospy.Publisher('loaded_path', Path, queue_size=10)
     
-    pub_collision = rospy.Publisher('collision', Bool, queue_size=10)
+   
     
     while not rospy.is_shutdown():
         pub_collision.publish(Bool(collision))
            
-        if not collision :
+        if (not collision and detect_collision) or not(detect_collision):
             # Get steering angle
             if len(course_x) != 0 :
                 speed, steering_angle, target_ind, alpha, R = pure_pursuit_control(state, course_x, course_y)

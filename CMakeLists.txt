@@ -92,6 +92,10 @@ generate_messages(
 generate_dynamic_reconfigure_options(
   cfg/Controller.cfg
   cfg/FTG.cfg
+  cfg/DWA.cfg
+  cfg/LSC.cfg
+  cfg/PurePursuit.cfg
+  cfg/StanleyController.cfg
   
 )
 

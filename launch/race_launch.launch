@@ -3,5 +3,7 @@
     <node pkg="ens_voiture_autonome" name="pure_pursuit" type="pp_with_avoidance.py" output="screen" />
     <node pkg="ens_voiture_autonome" name="local_steering_controller" type="local_steering_controller.py" output="screen" />
     
+    <node pkg="ens_voiture_autonome" name="stuck_detector" type="stuck_detector.py" output="screen" />
+    
 </launch>
 

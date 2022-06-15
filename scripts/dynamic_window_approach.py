@@ -30,6 +30,9 @@ import rospkg
 from visualization_msgs.msg import Marker
 from std_msgs.msg import Header, ColorRGBA, String
 
+from dynamic_reconfigure.server import Server
+from ens_voiture_autonome.cfg import DWAConfig
+
 
 show_animation = False
 
@@ -129,6 +132,52 @@ class Config:
 
 config = Config()
 
+def callback(cfg, level):
+    global config
+    global work_with_pp
+    global k
+    global look_ahead_dist
+    
+    config.max_yaw_rate = cfg['max_yaw_rate']
+
+    config.max_steering_angle = cfg['max_steering_angle']
+    config.steering_resolution = cfg['steering_resolution']
+    config.steering_speed = cfg['steering_speed']
+    
+    config.max_speed = cfg['max_speed']
+    config.min_speed = cfg['min_speed']
+    config.max_accel = cfg['max_accel']
+    config.v_resolution = cfg['v_resolution']
+    
+    
+    config.dt = cfg['dt']
+    config.predict_time_og = cfg['predict_time']
+    config.predict_time = cfg['predict_time']
+    
+    config.to_goal_cost_gain = cfg['to_goal_cost_gain']
+    config.speed_cost_gain = cfg['speed_cost_gain']
+    config.obstacle_cost_gain = cfg['obstacle_cost_gain']
+    
+    config.wheelbase = cfg['wheelbase_length']
+    robot_type = cfg['robot_type']
+    if robot_type == 0:
+        config.robot_type = RobotType.circle
+    else : 
+        config.robot_type = RobotType.rectangle
+    config.robot_radius = cfg['robot_radius']
+    config.robot_width = cfg['robot_width']
+    config.robot_length = cfg['robot_length']
+    
+    
+    k = cfg['k']
+    look_ahead_dist = cfg['look_ahead_dist']
+   
+    
+    
+            
+    
+    return cfg
+
 
 def motion(x, u, dt):
     """
@@ -195,7 +244,7 @@ def calc_control_and_trajectory(x, dw, config, goal, ob):
 
     # evaluate all trajectory with sampled input in dynamic window
     for v in np.arange(dw[0], dw[1], config.v_resolution):
-        for y in np.arange(-config.max_steering_angle, config.max_steering_angle, config.steering_resolution):
+        for y in np.arange(dw[2], dw[3], config.steering_resolution):
             
             yaw = v*np.tan(y)/config.wheelbase
             
@@ -223,13 +272,13 @@ def calc_control_and_trajectory(x, dw, config, goal, ob):
                         # angle difference of 0)
                         best_u[1] = -config.max_steering_angle
     if min_cost == np.inf:
-        print("can't avoid obstacle")
+        rospy.loginfo("can't avoid obstacle")
         best_u = old_u
         best_trajectory = predict_trajectory(x_init, old_u[0], old_u[1], config)
         
     config.predict_time = config.predict_time_og
         
-    # print(min_cost)
+    # rospy.loginfo(min_cost)
     old_u = best_u                 
     return best_u, best_trajectory
 
@@ -312,11 +361,6 @@ def plot_robot(x, y, yaw, config):  # pragma: no cover
 def calc_goal_coord(state, course_x, course_y):
     # adapted from: https://github.com/AtsushiSakai/PythonRobotics/tree/master/PathTracking/pure_pursuit
 
-    # k = rospy.get_param('joy_to_cmd_vel/k_pp')
-    # look_ahead_dist = rospy.get_param('joy_to_cmd_vel/look_ahead_dist')
-    
-    look_ahead_dist = 1.0
-    k=1.0
 
     dyn_look_ahead_dist = k * state.v + look_ahead_dist
     # search nearest point index
@@ -333,7 +377,7 @@ def calc_goal_coord(state, course_x, course_y):
         
         if ind >len(course_x)*2:
             ind = ind_car
-            print('too far away')
+            rospy.loginfo('too far away')
             break
           
     gx = course_x[ind%len(course_x)]-state.x
@@ -374,18 +418,54 @@ def load_path_callback(msg):
         
     
        
-        f = open(rospack.get_path('ens_vision')+f'/paths/{msg[1]}.pckl', 'rb')
-        marker,speeds,orientations,cmd_speeds = pickle.load(f)
-        f.close()
-        for i, pose in enumerate(marker.points):
-            path_x.append(pose.x)
-            path_y.append(pose.y)
-            course_speed.append(cmd_speeds[i])
+        if 'traj' in msg[1]:   
+        
+       
+            f = open(rospack.get_path('ens_vision')+f'/paths/{msg[1]}.pckl', 'rb')
+            marker,speeds,orientations,cmd_speeds = pickle.load(f)
+            f.close()
+            for i, pose1 in enumerate(marker.points):
+                path_x.append(pose1.x)
+                path_y.append(pose1.y)
+                course_speed.append(cmd_speeds[i])
+                
+                pose = PoseStamped()
+                
+                pose.header.frame_id = "map"
+                pose.header.seq = i
+                
+                pose.pose.position.x = pose1.x
+                pose.pose.position.y = pose1.y
+                
+                # msg_path.poses.append(pose)
+                
+        elif 'mcp' in msg[1]:   
+        
+       
+            f = open(rospack.get_path('ens_voiture_autonome')+f'/paths/{msg[1]}.npy', 'rb')
+            raceline = np.load(f)
+            f.close()
+            for i, position in enumerate(raceline):
+                path_x.append(position[0])
+                path_y.append(position[1])
+                course_speed.append(2)
+                
+                pose = PoseStamped()
+            
+                pose.header.frame_id = "map"
+                pose.header.seq = i
+                
+                
+                pose.pose.position.x = position[0]
+                pose.pose.position.y = position[1]
+                
+                # msg_path.poses.append(pose)
+            
+        # pub_full_path.publish(msg_path)
 
         course_x = path_x
         course_y = path_y
-        print('load path')
-        
+        rospy.loginfo('traj loaded')
         
 
 def vel_callback(data):
@@ -394,7 +474,7 @@ def vel_callback(data):
     global vitesse_max
     
     state.v = data.data
-    # print(state.v)
+    # rospy.loginfo(state.v)
     
 
 
@@ -427,7 +507,7 @@ def lidar_callback(data):
         
     config.ob = np.array(xy)
     
-    # print(config.ob)
+    # rospy.loginfo(config.ob)
     
 def publish_marker(pub, x, y):
     marker = Marker()     
@@ -441,7 +521,7 @@ def publish_marker(pub, x, y):
     pub.publish(marker)
 
 def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
-    print(__file__ + " start!!")
+    rospy.loginfo(__file__ + " start!!")
     
 
     global x_robot
@@ -462,6 +542,8 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
     rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
     rospy.Subscriber('vel', Float32, vel_callback, queue_size=10)
 
+    srv = Server(DWAConfig, callback)
+    
     # Start a TF broadcaster
     tf_br = tf.TransformBroadcaster()
     
@@ -491,7 +573,7 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
         x_robot[3] = u[0]
         x_robot[5] = u[1]
         
-        # print(v, steer)
+        # rospy.loginfo(v, steer)
         if v <0:
             v = -0.8
         
@@ -539,10 +621,10 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
         # check reaching goal
         dist_to_goal = math.hypot(x_robot[0] - goal[0], x_robot[1] - goal[1])
         if dist_to_goal <= config.robot_radius:
-            print("Goal!!")
+            rospy.loginfo("Goal!!")
             break
 
-    print("Done")
+    rospy.loginfo("Done")
    
 
 

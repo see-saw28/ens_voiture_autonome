@@ -39,7 +39,7 @@ from shapely.geometry import Point, Polygon
 from shapely.geometry.polygon import LinearRing, LineString
 from skimage.morphology import medial_axis, skeletonize
 
-save = False
+save = True
 k1999 = False
 TUM = True
 
@@ -48,7 +48,7 @@ plt.close('all')
 import rospkg
 rospack = rospkg.RosPack()
 
-map_name = 'test_ring'
+map_name = 'big_ring'
 
 with open(rospack.get_path('ens_voiture_autonome')+f'/map/{map_name}.yaml') as file:
     # The FullLoader parameter handles the conversion from YAML
@@ -195,8 +195,8 @@ for i in range(len(xm)):
     # print(distance,edt[round(ys[i]),round(xs[i])])
     inner_border.append((xm[i],ym[i])-per_vect*resolution*edt[ys[i],xs[i]])
     outer_border.append((xm[i],ym[i])+per_vect*resolution*edt[ys[i],xs[i]])
-    # trackline.append([xm[i],ym[i],resolution*edt[ys[i],xs[i]],resolution*edt[ys[i],xs[i]]])
-    trackline.append([xm[i],ym[i],border_width,border_width])
+    trackline.append([xm[i],ym[i],resolution*edt[ys[i],xs[i]],resolution*edt[ys[i],xs[i]]])
+    # trackline.append([xm[i],ym[i],border_width,border_width])
      
 center_line.append(center_line[0])
 inner_border.append(inner_border[0])
@@ -245,7 +245,7 @@ if TUM:
                                                  normvectors=normvec_norm,
                                                  A=M,
                                                  kappa_bound=0.66,
-                                                 w_veh=0.2,
+                                                 w_veh=0.3,
                                                  closed=CLOSED,
                                                  psi_s=psi_s,
                                                  psi_e=psi_e)

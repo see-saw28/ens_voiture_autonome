@@ -36,6 +36,8 @@ import rospkg
 from visualization_msgs.msg import Marker
 from std_msgs.msg import Header, ColorRGBA, String
 
+from dynamic_reconfigure.server import Server
+from ens_voiture_autonome.cfg import LSCConfig
 
 show_animation = False
 
@@ -46,7 +48,12 @@ course_y = []
 old_u = 0
 collision = False
 
-stuck = False
+work_with_pp = False
+
+look_ahead_dist = 1.0
+k=0.5
+
+
 
 class State:
 
@@ -82,12 +89,12 @@ class Config:
 
     def __init__(self):
         # robot parameter
-        self.max_speed = 3.0  # [m/s]
-        self.min_speed = -1.0  # [m/s]
+        # self.max_speed = 3.0  # [m/s]
+        # self.min_speed = -1.0  # [m/s]
         self.max_yaw_rate = 2.5  # [rad/s]
-        self.max_accel = 8.0 # [m/ss]
+        # self.max_accel = 8.0 # [m/ss]
         self.max_steering_angle = 0.30 # [rad]
-        self.v_resolution = 0.3  # [m/s]
+        # self.v_resolution = 0.3  # [m/s]
         self.steering_resolution = 0.01  # [rad]
         self.steering_speed = 6.0 # rad/s
         self.wheelbase = 0.257
@@ -95,10 +102,10 @@ class Config:
         self.predict_time_og = 1.5  # [s]
         self.predict_time = 1.5  # [s]
         self.to_goal_cost_gain = 0.30
-        self.speed_cost_gain = 1.0
+        # self.speed_cost_gain = 1.0
         self.obstacle_cost_gain = 1.0
         self.robot_stuck_flag_cons = 0.001  # constant to prevent robot stucked
-        self.robot_type = RobotType.circle
+        self.robot_type = RobotType.rectangle
 
         # if robot_type == RobotType.circle
         # Also used to check if goal is reached in both types
@@ -138,6 +145,40 @@ class Config:
 
 config = Config()
 
+def callback(cfg, level):
+    global config
+    global work_with_pp
+    global k
+    global look_ahead_dist
+    
+    config.max_yaw_rate = cfg['max_yaw_rate']
+
+    config.max_steering_angle = cfg['max_steering_angle']
+    config.steering_resolution = cfg['steering_resolution']
+    config.steering_speed = cfg['steering_speed']
+    config.wheelbase = cfg['wheelbase_length']
+    config.dt = cfg['dt']
+    config.predict_time_og = cfg['predict_time']
+    config.predict_time = cfg['predict_time']
+    config.to_goal_cost_gain = cfg['to_goal_cost_gain']
+    config.obstacle_cost_gain = cfg['obstacle_cost_gain']
+    robot_type = cfg['robot_type']
+    if robot_type == 0:
+        config.robot_type = RobotType.circle
+    else : 
+        config.robot_type = RobotType.rectangle
+    config.robot_radius = cfg['robot_radius']
+    config.robot_width = cfg['robot_width']
+    config.robot_length = cfg['robot_length']
+    work_with_pp = cfg['with_pure_pursuit']
+    k = cfg['k']
+    look_ahead_dist = cfg['look_ahead_dist']
+   
+    
+    
+            
+    
+    return cfg
 
 def motion(x, u, dt):
     """
@@ -213,10 +254,11 @@ def calc_control_and_trajectory(x, dw, config, goal, ob):
             trajectory = predict_trajectory(x_init, v, y, config)
             # calc cost
             to_goal_cost = config.to_goal_cost_gain * calc_to_goal_cost(trajectory, goal)
-            speed_cost = config.speed_cost_gain * (config.max_speed - trajectory[-1, 3])
+            # speed_cost = config.speed_cost_gain * (config.max_speed - trajectory[-1, 3])
             ob_cost = config.obstacle_cost_gain * calc_obstacle_cost(trajectory, ob, config)
 
-            final_cost = to_goal_cost + speed_cost + ob_cost
+            # final_cost = to_goal_cost + speed_cost + ob_cost
+            final_cost = to_goal_cost + ob_cost
 
             # search minimum trajectory
             if min_cost >= final_cost:
@@ -249,10 +291,11 @@ def calc_control_and_trajectory(x, dw, config, goal, ob):
                 trajectory = predict_trajectory(x_init, v, y, config)
                 # calc cost
                 to_goal_cost = config.to_goal_cost_gain * calc_to_goal_cost(trajectory, goal)
-                speed_cost = config.speed_cost_gain * (config.max_speed - trajectory[-1, 3])
+                # speed_cost = config.speed_cost_gain * (config.max_speed - trajectory[-1, 3])
                 ob_cost = config.obstacle_cost_gain * calc_obstacle_cost(trajectory, ob, config)
 
-                final_cost = to_goal_cost + speed_cost + ob_cost
+                # final_cost = to_goal_cost + speed_cost + ob_cost
+                final_cost = to_goal_cost + ob_cost
 
                 # search minimum trajectory
                 if min_cost >= final_cost:
@@ -268,7 +311,7 @@ def calc_control_and_trajectory(x, dw, config, goal, ob):
                         
         
         if min_cost == np.inf:
-            print('still hitting obstacle')
+            rospy.loginfo('still hitting obstacle')
             best_u = old_u
             best_trajectory = predict_trajectory(x_init, v, old_u, config)
             
@@ -276,7 +319,7 @@ def calc_control_and_trajectory(x, dw, config, goal, ob):
             
         config.predict_time = config.predict_time_og
         
-    # print(min_cost)
+    # rospy.loginfo(min_cost)
     old_u = best_u                    
     return best_u, best_trajectory
 
@@ -359,20 +402,13 @@ def plot_robot(x, y, yaw, config):  # pragma: no cover
 def calc_goal_coord(state, course_x, course_y):
     # adapted from: https://github.com/AtsushiSakai/PythonRobotics/tree/master/PathTracking/pure_pursuit
 
-    # k = rospy.get_param('joy_to_cmd_vel/k_pp')
-    # look_ahead_dist = rospy.get_param('joy_to_cmd_vel/look_ahead_dist')
-    try :
-        k = rospy.get_param('joy_to_cmd_vel/k_pp')
-        look_ahead_dist = rospy.get_param('joy_to_cmd_vel/look_ahead_dist')
+    
         
-    except:
-        look_ahead_dist = 1.0
-        k=0.5
     
 
-    dyn_look_ahead_dist = k * state.v + look_ahead_dist
+    dyn_look_ahead_dist = k * x_robot[3] + look_ahead_dist
     
-    # print(dyn_look_ahead_dist)
+    # rospy.loginfo(dyn_look_ahead_dist)
     # search nearest point index
     
     dx = [state.x - icx for icx in course_x]
@@ -387,7 +423,7 @@ def calc_goal_coord(state, course_x, course_y):
         
         if ind >len(course_x)*2:
             ind = ind_car
-            print('too far away')
+            rospy.loginfo('too far away')
             break
           
     gx = course_x[ind%len(course_x)]-state.x
@@ -475,16 +511,9 @@ def load_path_callback(msg):
 
         course_x = path_x
         course_y = path_y
-        print('traj loaded')
+        rospy.loginfo('traj loaded')
         
         
-
-def vel_callback(data):
-
-    global state
-    global vitesse_max
-    
-    state.v = data.data
     
 
 
@@ -500,23 +529,18 @@ def collision_callback(data):
     global collision
     
     collision = data.data
-    # print(data, 'callback')
+    # rospy.loginfo(data, 'callback')
 
 def lidar_callback(data):
     global config
-    global stuck
+
     angle_min = data.angle_min
     angle_max = data.angle_max
     angle_increment = data.angle_increment
     ranges = data.ranges
     angles = np.linspace(angle_min,angle_max,len(ranges))
     xy=[]
-    if ranges[0]<0.2:
-        stuck = True
-    elif ranges[0]<10 and stuck :
-        stuck = False
-        
-    pub_stuck.publish(Bool(stuck))
+    
     for i,angle in enumerate(angles):
         xl=ranges[i]*np.cos(angle+np.pi)
         yl=ranges[i]*np.sin(angle+np.pi)
@@ -526,7 +550,7 @@ def lidar_callback(data):
         
     config.ob = np.array(xy)
     
-    # print(config.ob)
+    # rospy.loginfo(config.ob)
     
 def publish_marker(pub, x, y):
     marker = Marker()     
@@ -540,32 +564,29 @@ def publish_marker(pub, x, y):
     pub.publish(marker)
 
 def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
-    print(__file__ + " start!!")
+    rospy.loginfo(__file__ + " start!!")
     
-    global pub_stuck
     global x_robot
     # init node
     rospy.init_node('local_steering_controller')
     rate = rospy.Rate(15) # hz
     
-    # pub = rospy.Publisher('local_steering_controller_cmd', Twist, queue_size=100)
-    pub = rospy.Publisher('pure_pursuit_cmd', Twist, queue_size=100)
-    # pub_path = rospy.Publisher('local_steering_controller_path', Path, queue_size=100)
-    pub_path = rospy.Publisher('pure_pursuit_path', Path, queue_size=100)
-    pub_stuck = rospy.Publisher('stuck', Bool, queue_size=10)
+    pub = rospy.Publisher('local_steering_controller_cmd', Twist, queue_size=100)
+    pub_pp = rospy.Publisher('pure_pursuit_cmd', Twist, queue_size=100)
+    pub_path = rospy.Publisher('local_steering_controller_path', Path, queue_size=100)
+    pub_path_pp = rospy.Publisher('pure_pursuit_path', Path, queue_size=100)
+    marker_pub = rospy.Publisher('local_steering_controller_look_ahead', Marker, queue_size=5)
+    marker_pub_pp = rospy.Publisher('pure_pursuit_look_ahead', Marker, queue_size=5)
+    
+    
     
     rospy.Subscriber('scan', LaserScan, lidar_callback, queue_size=10)
-    
     rospy.Subscriber('amcl_pose', PoseWithCovarianceStamped, update_state_callback, queue_size=100)
     rospy.Subscriber('syscommand', String, load_path_callback, queue_size=10)
-    
-    # marker_pub = rospy.Publisher('local_steering_controller_look_ahead', Marker, queue_size=5)
-    marker_pub = rospy.Publisher('pure_pursuit_look_ahead', Marker, queue_size=5)
-    rospy.Subscriber('vel', Float32, vel_callback, queue_size=10)
-
     rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
-    
     rospy.Subscriber('collision', Bool, collision_callback, queue_size=10)
+    
+    srv = Server(LSCConfig, callback)
 
     # Start a TF broadcaster
     tf_br = tf.TransformBroadcaster()
@@ -582,28 +603,33 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
     trajectory = np.array(x_robot)
     ob = config.ob
     
-    wheelbase = 0.257
-    max_steering_angle = 0.3
+  
     
     while not rospy.is_shutdown() :
-        # print(collision, 'lcs')
-        if collision:
+        # rospy.loginfo(collision, 'lcs')
+        if (collision and work_with_pp) or not work_with_pp:
             ob = config.ob
-            # print(ob)
+            # rospy.loginfo(ob)
             if len(course_x) != 0 :
                 goal = calc_goal_coord(state, course_x, course_y)
-                publish_marker(marker_pub, goal[0], goal[1])
+                if work_with_pp:
+                    publish_marker(marker_pub_pp, goal[0], goal[1])
+                else :
+                    publish_marker(marker_pub, goal[0], goal[1])
             u, predicted_trajectory = dwa_control(x_robot, config, goal, ob)
             steer = u
             x_robot[4] = u
             
             
-            # print(v, steer)
+            # rospy.loginfo(v, steer)
             
             msg = Twist()
             msg.angular.z = steer
             
-            pub.publish(msg)
+            if work_with_pp:
+                pub_pp.publish(msg)
+            else :
+                pub.publish(msg)
             
             msg_path = Path()
             msg_path.header.frame_id = 'base_link'
@@ -618,8 +644,11 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
                 pose.pose.position.y = traj[1]
                 
                 msg_path.poses.append(pose)
-                
-            pub_path.publish(msg_path)
+            
+            if work_with_pp:
+                pub_path_pp.publish(msg_path)
+            else:
+                pub_path.publish(msg_path)
             # x = motion(x, u, config.dt)  # simulate robot
             # trajectory = np.vstack((trajectory, x))  # store state history
             # rate.sleep()
@@ -642,7 +671,7 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
         rate.sleep()
     
             
-    print("Done")
+    rospy.loginfo("Done")
    
 
 

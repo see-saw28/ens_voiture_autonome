@@ -37,10 +37,6 @@ near_distance=0.7
 max_velocity_distance=3.0
 direct_steering=False
     
-def odom_callback(data):
-    
-    global velocity
-    velocity = -data.twist.twist.linear.x
     
 def callback(config, level):
     global max_distance
@@ -82,8 +78,6 @@ def main():
     
     
     rospy.Subscriber('scan', LaserScan, lidar_callback, queue_size=10)
-    # rospy.Subscriber('cmd_vel', Twist, cmd_callback, queue_size=10)
-    # rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
     pub_marker = rospy.Publisher('follow_the_gap_marker', Marker, queue_size=10)
     pub_marker1 = rospy.Publisher('follow_the_gap_obstacle_marker', Marker, queue_size=10)
     pub = rospy.Publisher('follow_the_gap_cmd', Twist, queue_size=10)
@@ -110,13 +104,14 @@ def lidar_callback(data):
     angle_min = data.angle_min
     angle_max = data.angle_max
     angle_increment = data.angle_increment
+    range_max = data.range_max
     ranges = np.roll(np.array(data.ranges),180)
     # print(angle_min, angle_max)
     n = len(ranges)
     angles = np.linspace(angle_min,angle_max,n)
     
     
-    ranges[ranges>12]=12
+    ranges[ranges>range_max]=range_max
     
     
     
