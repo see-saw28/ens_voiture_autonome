@@ -362,7 +362,7 @@ def calc_goal_coord(state, course_x, course_y):
     # adapted from: https://github.com/AtsushiSakai/PythonRobotics/tree/master/PathTracking/pure_pursuit
 
 
-    dyn_look_ahead_dist = k * state.v + look_ahead_dist
+    dyn_look_ahead_dist = k * x_robot[3] + look_ahead_dist
     # search nearest point index
     
     dx = [state.x - icx for icx in course_x]

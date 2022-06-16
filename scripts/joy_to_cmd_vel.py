@@ -15,7 +15,7 @@ from nav_msgs.msg import Odometry
 import numpy as np
 from dynamic_reconfigure.server import Server
 from ens_voiture_autonome.cfg import ControllerConfig
-
+import dynamic_reconfigure.client
 
 
 rospy.init_node('joy_to_cmd_vel', anonymous=False)
@@ -29,7 +29,7 @@ obstacle_speed_coef = 0.5
 sigma2 = -steer_max**2/np.log(corner_speed_coef)
 binary_steering_threshold = 0.1
 
-PP_spped = 0
+PP_speed = 0
 PP_steering = 0
 
 SC_speed = 0
@@ -49,6 +49,7 @@ driving_mode = 0
 aeb = False
 breaking = False
 aeb_count = 0
+aeb_count_threshold = 3
 breaking_time = 0
 
 velocity_mes = 0
@@ -57,10 +58,10 @@ escape_distance = 0.8
 
 collision = False
 
-driving_mode_dict = {0:'MANUAL',1:'PURE PURSUIT',2:'STANLEY CONTROLLER',3:'MOVE BASE',4:'DWA',5:'FOLLOW THE GAP',6:'LOCAL STEERING CONTROLLER'}
+driving_mode_dict = {0:'MANUAL',1:'PURE PURSUIT',2:'STANLEY CONTROLLER',3:'LOCAL STEERING CONTROLLER',4:'DWA',5:'MOVE BASE',6:'FOLLOW THE GAP'}
 speed_mode_dict = {0:'MANUAL',1:'CONSTANT',2:'GAUSSIAN', 3:'BINARY',4:'LINEAR',5:'RECORDED'}
 
-print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
+# print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
 
 class State:
 
@@ -159,7 +160,7 @@ def callback(data):
     if data.RE_SHARE :
         driving_mode = 0
         speed_mode =0
-        print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
+        client.update_configuration({"driving_mode":driving_mode, "speed_mode":speed_mode})
     
     msg = Twist()
     
@@ -180,7 +181,7 @@ def callback(data):
         
     elif driving_mode == 0:
         if data.BUTTON_SQUARE :
-            msg.linear.x = -speed_max
+            msg.linear.x = speed_max
         else :
             msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
         msg.angular.z = -data.AXIS_LEFT_STICK_X*steer_max
@@ -191,7 +192,7 @@ def callback(data):
         
         msg.angular.z = PP_steering
         if data.BUTTON_SQUARE :
-            msg.linear.x = -speed_max
+            msg.linear.x = speed_max
         else :
             msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
         pub.publish(msg)   
@@ -209,7 +210,7 @@ def callback(data):
 		
     elif driving_mode == 3 and speed_mode == 0 :
         
-        msg.angular.z = MB_steering
+        msg.angular.z = LSC_steering
         msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
         pub.publish(msg) 
         
@@ -221,13 +222,13 @@ def callback(data):
         
     elif driving_mode == 5 and speed_mode == 0 :
         
-        msg.angular.z = FTG_steering
+        msg.angular.z = MB_steering
         msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
         pub.publish(msg)
         
     elif driving_mode == 6 and speed_mode == 0 :
         
-        msg.angular.z = LSC_steering
+        msg.angular.z = FTG_steering
         msg.linear.x = -data.AXIS_RIGHT_STICK_Y*speed_max
         pub.publish(msg)
     
@@ -237,27 +238,34 @@ def callback(data):
     
     if (data.RE_R1):
         speed_max = min(speed_max+0.25, 6)
-        print(f'vitesse max :{speed_max} m/s')
+        # print(f'vitesse max :{speed_max} m/s')
+        client.update_configuration({"max_velocity":speed_max})
+        
         
     elif (data.RE_L1):
         speed_max = max(speed_max-0.25,0.5)
-        print(f'vitesse max :{speed_max} m/s')
+        # print(f'vitesse max :{speed_max} m/s')
+        client.update_configuration({"max_velocity":speed_max})
         
     if (data.HAT_X == 1 and data.RE_HAT_X):
         driving_mode = min(driving_mode+1, len(driving_mode_dict)-1)
-        print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
+        # print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
+        client.update_configuration({"driving_mode":driving_mode})
         
     elif (data.HAT_X == -1 and data.RE_HAT_X):
         driving_mode = max(driving_mode-1,0)
-        print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
+        # print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
+        client.update_configuration({"driving_mode":driving_mode})
         
     if (data.HAT_Y == 1 and data.RE_HAT_Y):
         speed_mode = min(speed_mode+1, len(speed_mode_dict)-1)
-        print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
+        # print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
+        client.update_configuration({"speed_mode":speed_mode})
         
     elif (data.HAT_Y == -1 and data.RE_HAT_Y):
         speed_mode = max(speed_mode-1,0)
-        print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
+        # print(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED')
+        client.update_configuration({"speed_mode":speed_mode})
           
         
 
@@ -311,7 +319,7 @@ def aeb_callback(data):
     global breaking_time
     global aeb_count
     
-    aeb_count_threshold = 3
+    
     
     if data.data and aeb_count <aeb_count_threshold:
         
@@ -335,7 +343,7 @@ def move_base_callback(data):
 	
 	MB_steering = data.angular.z
 	
-	if driving_mode == 3 :
+	if driving_mode == 5 :
 		if speed_mode != 0:
 			pub.publish(data)
             
@@ -368,7 +376,7 @@ def follow_the_gap_callback(data):
     
     msg = Twist()
     
-    if driving_mode == 5 :
+    if driving_mode == 6 :
         
         msg.angular.z = FTG_steering
 
@@ -388,7 +396,7 @@ def lsc_callback(data):
     
     msg = Twist()
     
-    if driving_mode == 6 :
+    if driving_mode == 3 :
         
         msg.angular.z = LSC_steering
 
@@ -400,28 +408,35 @@ def lsc_callback(data):
         
         if speed_mode != 0:
             pub.publish(msg) 
+            
+def keyboard_callback(data):
+    if driving_mode == 0 :
+        pub.publish(data)
 
-def odom_callback(data):
-    
-    global velocity_mes
 
-    
-    velocity_mes = -data.twist.twist.linear.x
-    msg = Float32()
-    msg.data = velocity_mes
-    # pub_vel.publish(msg)
     
 def server_callback(config, level):
     global corner_speed_coef
     global obstacle_speed_coef
     global binary_steering_threshold
     global sigma2 
+    global speed_max
+    global speed_mode
+    global driving_mode
+    global aeb_count_threshold
+    
             
     corner_speed_coef = config['corner_speed_coef']
     obstacle_speed_coef = config['obstacle_speed_coef']
     sigma2 = -steer_max**2/np.log(corner_speed_coef)
     binary_steering_threshold = config['binary_steering_threshold']
+    speed_max = config['max_velocity']
+    speed_mode = config['speed_mode']
+    driving_mode = config['driving_mode']
     
+    aeb_count_threshold = config['aeb_count_threshold']
+    
+    rospy.loginfo(f'MODE {driving_mode_dict[driving_mode]} with {speed_mode_dict[speed_mode]} SPEED and max speed : {speed_max} m/s')
     
     return config
 
@@ -439,8 +454,7 @@ def collision_callback(data):
     collision = data.data
 
 def listener_and_pub():
-    global pub_vel
-    
+   
     rospy.Subscriber("/DS4_input", DS4, callback)
     rospy.Subscriber("/pure_pursuit_cmd", Twist, pure_pursuit_callback)
     rospy.Subscriber("/stanley_control_cmd", Twist, stanley_control_callback)
@@ -448,21 +462,24 @@ def listener_and_pub():
     rospy.Subscriber("/dwa_cmd", Twist, dwa_callback)
     rospy.Subscriber("/follow_the_gap_cmd", Twist, follow_the_gap_callback)
     rospy.Subscriber("/local_steering_controller_cmd", Twist, lsc_callback)
+    rospy.Subscriber("/keyboard_cmd", Twist, keyboard_callback)
     rospy.Subscriber("/AEB", Bool, aeb_callback)
     rospy.Subscriber("/camera/odom/sample", Odometry, odom_callback)
     rospy.Subscriber('stuck', Bool, stuck_callback, queue_size=10)
     rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
     rospy.Subscriber('collision', Bool, collision_callback, queue_size=10)
-    srv = Server(ControllerConfig, server_callback)
-    pub_vel = rospy.Publisher('/vel',Float32,queue_size=5)
+    
+    
     rospy.spin()
 	
 if __name__ == '__main__':
-	try:
-		listener_and_pub()
+    try:
+        srv = Server(ControllerConfig, server_callback)
+        client = dynamic_reconfigure.client.Client("joy_to_cmd_vel", timeout=30)
+        listener_and_pub()
 		
 
 
-	except  rospy.ROSInterruptException:
+    except  rospy.ROSInterruptException:
 		
-		pass
+        pass

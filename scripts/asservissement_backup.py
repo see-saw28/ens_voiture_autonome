@@ -45,8 +45,6 @@ from sensor_msgs.msg import Joy
 from geometry_msgs.msg import Vector3Stamped
 from std_msgs.msg import Float32, Bool
 from nav_msgs.msg import Path, Odometry
-from dynamic_reconfigure.server import Server
-from ens_voiture_autonome.cfg import PIDConfig
 
 x = 0.0
 z = 0.0
@@ -57,28 +55,13 @@ wb = 0.257
 
 old_x=1
 
-def pid_callback(config, level):
-	global kp
-	global ki
-	global kd
-	global max_integral
-    
-    
-    
-	kp = config['kp'] 
-	ki = config['ki'] 
-	kd = config['kd'] 
-	max_integral = config['max_integral']     
-    
-	return config
-
 def callback(msg):
 #	print('test')
 	global old_x
 	global x
 	global z
 	x = msg.linear.x
-	z = 1.1*msg.angular.z
+	z = 2.0*msg.angular.z
 #	print(x,z)
 	
 def odom_callback(data):
@@ -100,6 +83,10 @@ def asservissement():
 	error_integral = 0
 	old_error = 0
 	
+	Kp = 3
+	Ki = 1
+	Kd = 1
+        
 	
 	rospy.init_node('command', anonymous=False)
 
@@ -107,7 +94,7 @@ def asservissement():
 	pub_vel = rospy.Publisher('/vel',Twist,queue_size=5)
 	rospy.Subscriber("/cmd_vel", Twist, callback) #/cmd_vel /key_vel /ps3_vel /joy
 	rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
-	srv = Server(PIDConfig, pid_callback)
+	
 	frequency = 50
 
 	rate = rospy.Rate(frequency) 
@@ -116,20 +103,28 @@ def asservissement():
     #msg.pose = Pose(Point(x, y, 0.),Quaternion(*tf.transformations.quaternion_from_euler(roll, pitch, yaw)))
     
 	while not rospy.is_shutdown():
-		 
+		try : 
+			try :
+				Kp = rospy.get_param('joy_to_cmd_vel/kp')
+				Ki = rospy.get_param('joy_to_cmd_vel/ki')
+				Kd = rospy.get_param('joy_to_cmd_vel/kd')
+			except :
+			    Kp = 1.0
+			    Ki = 0.4
+			    Kd = 0.3
+			error = x - velocity_mes
 			
-		error = x - velocity_mes
+			error_integral += error/frequency
+			error_integral = np.sign(error_integral)*min(15.0,abs(error_integral))
+			print(error_integral)
+			error_derivative = (error-old_error)*frequency
 			
-		error_integral += error/frequency
-		error_integral = np.sign(error_integral)*min(max_integral,abs(error_integral))
-		error_derivative = (error-old_error)*frequency
+			speed = Kp*error + Ki*error_integral + Kd*error_derivative
 			
-		speed = kp*error + ki*error_integral + kd*error_derivative
+			old_error = error
 			
-		old_error = error
-			
-		if x>=0:
-			pwm = 6.88-0.20*speed
+			if x>=0:
+				pwm = 6.88-0.20*speed
 
 # 			if (speed>=0 and speed<2.4):
 # 			    pwm=6.99-(0.1569*speed + 0.0032)
@@ -140,20 +135,22 @@ def asservissement():
 # 			    pwm=6.95-(0.4037*speed-0.5757)
 
 
-		elif (x<0):
-			pwm=7.5-0.5*x
-			error_integral = 0
+			elif (x<0):
+			    pwm=7.5-0.5*x
+			    error_integral = 0
 
 		#	print(z)
-		p.ChangeDutyCycle(5.2-z/0.30)
-		q.ChangeDutyCycle(pwm)
-		msg = Float32()     
-		msg.data = pwm
-		pub.publish(msg)
+			p.ChangeDutyCycle(5.2-z/0.30)
+			q.ChangeDutyCycle(pwm)
+			msg = Float32()     
+			msg.data = pwm
+			pub.publish(msg)
 			
-		rate.sleep()
+			rate.sleep()
 			
-		
+		except rospy.ROSInterruptException:
+		    
+			pass
 			
 	
 if __name__ == '__main__':

@@ -98,9 +98,15 @@ def lidar_callback(data):
         b.data = True
     else :
         b.data = False
-        
-    x = -ranges[laser_number]*np.cos(alpha)
-    y = -ranges[laser_number]*np.sin(alpha)
+    
+    d = min(aeb_distance,ranges[laser_number])
+    
+    # x = -ranges[laser_number]*np.cos(alpha)
+    # y = -ranges[laser_number]*np.sin(alpha)
+    
+    x = -d*np.cos(alpha)
+    y = -d*np.sin(alpha)
+    
     publish_marker(pub_marker, x, y, alpha, collide=b.data )
         
     pub.publish(b)

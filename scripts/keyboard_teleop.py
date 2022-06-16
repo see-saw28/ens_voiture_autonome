@@ -5,8 +5,7 @@ Created on Fri Jun 10 14:46:29 2022
 
 @author: student
 """
-from getkey import getkey, keys
-key = getkey()
+
 
     
 #!/usr/bin/env python3
@@ -81,6 +80,7 @@ old_HAT_Y = 0
 HAT_1 = 0
 
 quit = False
+from inputs import get_key
 
 
     
@@ -100,8 +100,12 @@ if __name__ == '__main__':
         #msg.pose = Pose(Point(x, y, 0.),Quaternion(*tf.transformations.quaternion_from_euler(roll, pitch, yaw)))
         
         while not (quit or rospy.is_shutdown()):
-            key = getkey()
-            print(key)
+            
+            events = get_key()
+            for event in events:
+                print(event.ev_type, event.code, event.state)
+            # key = getkey()
+            # print(key)
             # msg = DS4()
             # # Get events
             # for event in pygame.event.get():

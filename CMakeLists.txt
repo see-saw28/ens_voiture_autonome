@@ -96,6 +96,7 @@ generate_dynamic_reconfigure_options(
   cfg/LSC.cfg
   cfg/PurePursuit.cfg
   cfg/StanleyController.cfg
+  cfg/PID.cfg
   
 )
 

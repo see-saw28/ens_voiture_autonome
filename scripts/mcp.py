@@ -39,16 +39,19 @@ from shapely.geometry import Point, Polygon
 from shapely.geometry.polygon import LinearRing, LineString
 from skimage.morphology import medial_axis, skeletonize
 
-save = True
+save = False
+flip = True
 k1999 = False
 TUM = True
+rolling_number = 100
+ros = True
 
 plt.close('all')
 
 import rospkg
 rospack = rospkg.RosPack()
 
-map_name = 'big_ring'
+map_name = 'cachan'
 
 with open(rospack.get_path('ens_voiture_autonome')+f'/map/{map_name}.yaml') as file:
     # The FullLoader parameter handles the conversion from YAML
@@ -68,7 +71,7 @@ with open(rospack.get_path('ens_voiture_autonome')+'/map/'+param['image'], 'rb')
 ima = np.array(im)
 ima[ima<254]=0
 
-conv_size = 5
+conv_size = 3
 
 K = np.ones((conv_size,conv_size))/conv_size**2
 
@@ -76,7 +79,7 @@ f1 = signal.convolve2d(ima, K, boundary='symm', mode='same')
 
 # f1 = ima
 
-threshold = 150
+threshold = 250
 
 f1[f1<threshold]=0
 f1[f1>=threshold]=1
@@ -134,8 +137,16 @@ while len(x)>0:
         x.pop(ind)
         y.pop(ind)
     i+=1
-    
-    
+
+ 
+
+xs = np.roll(np.array(xs),rolling_number)
+ys = np.roll(np.array(ys),rolling_number)
+
+  
+if flip :   
+    xs = np.flip(xs)
+    ys = np.flip(ys)
 
 fig, ((ax1, ax2, ax3), (ax4, ax5, ax6)) = plt.subplots(2, 3)
 fig.suptitle('Sharing x per column, y per row')
@@ -180,7 +191,7 @@ outer_border=[]
 trackline = []
 
 width = 2
-border_width = 0.40
+border_width = 0.45
 
 for i in range(len(xm)):
     
@@ -193,10 +204,12 @@ for i in range(len(xm)):
     # inner_border.append((xm[i],ym[i])-per_vect*resolution*distance)
     # outer_border.append((xm[i],ym[i])+per_vect*resolution*distance)
     # print(distance,edt[round(ys[i]),round(xs[i])])
-    inner_border.append((xm[i],ym[i])-per_vect*resolution*edt[ys[i],xs[i]])
-    outer_border.append((xm[i],ym[i])+per_vect*resolution*edt[ys[i],xs[i]])
-    trackline.append([xm[i],ym[i],resolution*edt[ys[i],xs[i]],resolution*edt[ys[i],xs[i]]])
-    # trackline.append([xm[i],ym[i],border_width,border_width])
+    # inner_border.append((xm[i],ym[i])-per_vect*resolution*edt[ys[i],xs[i]])
+    # outer_border.append((xm[i],ym[i])+per_vect*resolution*edt[ys[i],xs[i]])
+    inner_border.append((xm[i],ym[i])-per_vect*border_width)
+    outer_border.append((xm[i],ym[i])+per_vect*border_width)
+    # trackline.append([xm[i],ym[i],resolution*edt[ys[i],xs[i]],resolution*edt[ys[i],xs[i]]])
+    trackline.append([xm[i],ym[i],border_width,border_width])
      
 center_line.append(center_line[0])
 inner_border.append(inner_border[0])
@@ -244,8 +257,8 @@ if TUM:
     alpha_mincurv, curv_error_max = opt_min_curv(reftrack=reftrack,
                                                  normvectors=normvec_norm,
                                                  A=M,
-                                                 kappa_bound=0.66,
-                                                 w_veh=0.3,
+                                                 kappa_bound=0.55,
+                                                 w_veh=0.25,
                                                  closed=CLOSED,
                                                  psi_s=psi_s,
                                                  psi_e=psi_e)
@@ -393,7 +406,7 @@ XI_ITERATIONS=4
 
 # Number of times to scan the entire race track to iterate
 # 500 will get a good start, 1500 will be closer to optimal result
-LINE_ITERATIONS=1000
+LINE_ITERATIONS=500
 
 def improve_race_line(old_line, inner_border, outer_border):
     '''Use gradient descent, inspired by K1999, to find the racing line'''
@@ -503,35 +516,59 @@ if k1999 :
     
 
 
-"""
-if __name__ == '__main__':
+if ros:
     try:
         # init node
         rospy.init_node('pure_pursuit_with_avoidance')
         rate = rospy.Rate(15)
-        pub_path = rospy.Publisher('mcp_path', Path, queue_size=10)
+        pub_path = rospy.Publisher('mcp_k1999_path', Path, queue_size=10)
         pub_path1 = rospy.Publisher('centerline_path', Path, queue_size=10)
+        pub_path2 = rospy.Publisher('mcp_tum_path', Path, queue_size=10)
         # display the path to the look ahead point
-        msg_path = Path()
-        msg_path.header.frame_id = 'map'
         
-        
+        if k1999 :
+            msg_path = Path()
+            msg_path.header.frame_id = 'map'
             
-        for i,position in enumerate(loop_race_line):
+            
+                
+            for i,position in enumerate(loop_race_line):
+                
+                
+                pose = PoseStamped()
+                
+                pose.header.frame_id = "map"
+                pose.header.seq = i
+                
+                print(position)
+                pose.pose.position.x = position[0]
+                pose.pose.position.y = position[1]
+                
+                msg_path.poses.append(pose)
+                
+            pub_path.publish(msg_path)
+            
+        if TUM :
+            msg_path2 = Path()
+            msg_path2.header.frame_id = 'map'
             
             
-            pose = PoseStamped()
-            
-            pose.header.frame_id = "map"
-            pose.header.seq = i
-            
-            print(position)
-            pose.pose.position.x = position[0]
-            pose.pose.position.y = position[1]
-            
-            msg_path.poses.append(pose)
-            
-        pub_path.publish(msg_path)
+                
+            for i,position in enumerate(path_result):
+                
+                
+                pose = PoseStamped()
+                
+                pose.header.frame_id = "map"
+                pose.header.seq = i
+                
+                print(position)
+                pose.pose.position.x = position[0]
+                pose.pose.position.y = position[1]
+                
+                msg_path2.poses.append(pose)
+                
+            pub_path2.publish(msg_path2)
         
         msg_path1 = Path()
         msg_path1.header.frame_id = 'map'
@@ -553,11 +590,14 @@ if __name__ == '__main__':
             msg_path1.poses.append(pose)
             
         while not rospy.is_shutdown():
-            pub_path.publish(msg_path)
+            if k1999:
+                pub_path.publish(msg_path)
+            if TUM :
+                pub_path2.publish(msg_path2)
             pub_path1.publish(msg_path1)
             rate.sleep()
     except rospy.ROSInterruptException:
         pass
 
-"""
+
 
