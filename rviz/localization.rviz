@@ -41,7 +41,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: LaserScan
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -255,7 +255,7 @@ Visualization Manager:
       Marker Topic: /follow_the_gap_marker
       Name: Marker
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -263,7 +263,7 @@ Visualization Manager:
       Marker Topic: /follow_the_gap_obstacle_marker
       Name: Marker
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -303,7 +303,7 @@ Visualization Manager:
       Marker Topic: /stanley_controller_look_ahead
       Name: Marker
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -376,7 +376,7 @@ Visualization Manager:
       Length: 0.20000000298023224
       Name: Axes
       Radius: 0.05000000074505806
-      Reference Frame: marker_0
+      Reference Frame: camera
       Show Trail: false
       Value: true
   Enabled: true
@@ -407,7 +407,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 11.844167709350586
+      Distance: 9.015588760375977
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -415,9 +415,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -1.185083031654358
-        Y: -1.307499885559082
-        Z: -0.04283296689391136
+        X: -0.14242538809776306
+        Y: 0.8079670071601868
+        Z: -0.04394596815109253
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -425,7 +425,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 3.0835721492767334
+      Yaw: 0.033572595566511154
     Saved: ~
 Window Geometry:
   Displays:

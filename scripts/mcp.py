@@ -40,18 +40,19 @@ from shapely.geometry.polygon import LinearRing, LineString
 from skimage.morphology import medial_axis, skeletonize
 
 save = False
+save_centerline = True
 flip = True
 k1999 = False
 TUM = True
 rolling_number = 100
-ros = True
+ros = False
 
 plt.close('all')
 
 import rospkg
 rospack = rospkg.RosPack()
 
-map_name = 'cachan'
+map_name = 'test_map1_clean'
 
 with open(rospack.get_path('ens_voiture_autonome')+f'/map/{map_name}.yaml') as file:
     # The FullLoader parameter handles the conversion from YAML
@@ -191,7 +192,7 @@ outer_border=[]
 trackline = []
 
 width = 2
-border_width = 0.45
+border_width = 0.40
 
 for i in range(len(xm)):
     
@@ -227,8 +228,7 @@ import os
 import sys
 import matplotlib.pyplot as plt
 sys.path.append(os.path.dirname(__file__))
-from trajectory_planning_helpers.calc_splines import calc_splines
-from trajectory_planning_helpers.opt_min_curv import opt_min_curv
+import trajectory_planning_helpers as tph
 
 # --- PARAMETERS ---
 CLOSED = True
@@ -244,17 +244,17 @@ psi_e = 0.0
 if TUM:
 # --- CALCULATE MIN CURV ---
     if CLOSED:
-        coeffs_x, coeffs_y, M, normvec_norm = calc_splines(path=np.vstack((reftrack[:, 0:2], reftrack[0, 0:2])))
+        coeffs_x, coeffs_y, M, normvec_norm = tph.calc_splines.calc_splines(path=np.vstack((reftrack[:, 0:2], reftrack[0, 0:2])))
     else:
         reftrack = reftrack[200:600, :]
-        coeffs_x, coeffs_y, M, normvec_norm = calc_splines(path=reftrack[:, 0:2],
+        coeffs_x, coeffs_y, M, normvec_norm = tph.calc_splines.calc_splines(path=reftrack[:, 0:2],
                                                            psi_s=psi_s,
                                                            psi_e=psi_e)
     
         # extend norm-vec to same size of ref track (quick fix for testing only)
         normvec_norm = np.vstack((normvec_norm[0, :], normvec_norm))
     
-    alpha_mincurv, curv_error_max = opt_min_curv(reftrack=reftrack,
+    alpha_mincurv, curv_error_max = tph.opt_min_curv.opt_min_curv(reftrack=reftrack,
                                                  normvectors=normvec_norm,
                                                  A=M,
                                                  kappa_bound=0.55,
@@ -283,45 +283,122 @@ if TUM:
     plt.axis('equal')
     plt.show()
     
-    def check_file(filePath):
-        if os.path.exists(filePath):
-            numb = 1
-            while True:
-                newPath = "{0}_{2}{1}".format(*os.path.splitext(filePath) + (numb,))
-                if os.path.exists(newPath):
-                    numb += 1
-                else:
-                    return newPath
-        return filePath 
+    
+    
+    
+   
+    
+    # ----------------------------------------------------------------------------------------------------------------------
+    # INTERPOLATE SPLINES TO SMALL DISTANCES BETWEEN RACELINE POINTS -------------------------------------------------------
+    # ----------------------------------------------------------------------------------------------------------------------
+    
+    raceline_interp, a_opt, coeffs_x_opt, coeffs_y_opt, spline_inds_opt_interp, t_vals_opt_interp, s_points_opt_interp,\
+        spline_lengths_opt, el_lengths_opt_interp = tph.create_raceline.\
+        create_raceline(refline=reftrack[:, :2],
+                        normvectors=normvec_norm,
+                        alpha=alpha_mincurv,
+                        stepsize_interp=resolution)
+                        
+    # ----------------------------------------------------------------------------------------------------------------------
+    # CALCULATE HEADING AND CURVATURE --------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------------------------------------
+                        
+    # calculate heading and curvature (analytically)
+    psi_vel_opt, kappa_opt = tph.calc_head_curv_an.\
+        calc_head_curv_an(coeffs_x=coeffs_x_opt,
+                          coeffs_y=coeffs_y_opt,
+                          ind_spls=spline_inds_opt_interp,
+                          t_spls=t_vals_opt_interp)
+    accel = 8.0                    
+    ggv = np.array([[0,accel,accel],[1,accel,accel],[2,accel,accel],[2.5,accel,accel]])
+    ax_max_machines = np.array([[0,accel],[1,accel],[2,accel],[3.0,accel]])                   
+    vx_profile_opt = tph.calc_vel_profile.\
+            calc_vel_profile(ggv=ggv,
+                             ax_max_machines=ax_max_machines,
+                             v_max=2.5,
+                             kappa=kappa_opt,
+                             el_lengths=el_lengths_opt_interp,
+                             closed=True,
+                             filt_window=None,
+                             dyn_model_exp=1,
+                             drag_coeff=0.75,
+                             m_veh=3.0)
+    
+    # calculate longitudinal acceleration profile
+    vx_profile_opt_cl = np.append(vx_profile_opt, vx_profile_opt[0])
+    ax_profile_opt = tph.calc_ax_profile.calc_ax_profile(vx_profile=vx_profile_opt_cl,
+                                                         el_lengths=el_lengths_opt_interp,
+                                                         eq_length_output=False)
+    # ----------------------------------------------------------------------------------------------------------------------
+    # CALCULATE VELOCITY AND ACCELERATION PROFILE --------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------------------------------------
+    
+    # calculate laptime
+    t_profile_cl = tph.calc_t_profile.calc_t_profile(vx_profile=vx_profile_opt,
+                                                     ax_profile=ax_profile_opt,
+                                                     el_lengths=el_lengths_opt_interp)
+    print("INFO: Estimated laptime: %.2fs" % t_profile_cl[-1])
+    
+    if True:
+        plt.figure(figsize=(8,6))
+        s_points = np.cumsum(el_lengths_opt_interp[:-1])
+        s_points = np.insert(s_points, 0, 0.0)
+    
+        plt.plot(s_points, vx_profile_opt)
+        plt.plot(s_points, ax_profile_opt)
+        plt.plot(s_points, t_profile_cl[:-1])
+    
+        plt.grid()
+        plt.xlabel("distance in m")
+        plt.legend(["vx in m/s", "ax in m/s2", "t in s"])
+    
+        plt.show()
+    
+    # ----------------------------------------------------------------------------------------------------------------------
+    # DATA POSTPROCESSING --------------------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------------------------------------
+    
+    # arrange data into one trajectory
+    trajectory_opt = np.column_stack((raceline_interp,
+                                      psi_vel_opt,
+                                      kappa_opt,
+                                      vx_profile_opt,
+                                      ax_profile_opt,
+                                      s_points_opt_interp))
+    spline_data_opt = np.column_stack((spline_lengths_opt, coeffs_x_opt, coeffs_y_opt))
+    
+    # create a closed race trajectory array
+    traj_race_cl = np.vstack((trajectory_opt, trajectory_opt[0, :]))
+    traj_race_cl[-1, -1] = np.sum(spline_data_opt[:, -1])  # set correct length
+    
+    
+    import path_tools
        
     if save :  
-        import rospkg
-        rospack = rospkg.RosPack()
-             
-        filename=check_file(rospack.get_path('ens_voiture_autonome')+'/paths/mcp.npy')
+        path_tools.save_mcp(traj_race_cl)
         
-        f = open(filename, 'wb')
-        np.save(f, path_result)
-        f.close()
         
-        print('saved mcp path :', filename)
+    if save_centerline :  
+        path = path_tools.xy_to_path(reftrack[:, 0],reftrack[:, 1])
+        path_tools.save_path(path, 'centerline')
+   
     
-    
-    print(min(outer_border[1]),min(inner_border[1]))
-    
-    if min(outer_border[0])>min(inner_border[0]):
-        a = outer_border
-        outer_border = inner_border
-        inner_border = a
-    
-    
-    l_center_line = LineString(center_line)
-    l_inner_border = LineString(inner_border)
-    l_outer_border = LineString(outer_border)
-    road_poly = Polygon(np.vstack((l_outer_border, np.flipud(l_inner_border))))
-    print("Is loop/ring? ", l_center_line.is_ring)
-    road_poly
-    
+ 
+
+print(min(outer_border[1]),min(inner_border[1]))
+ 
+if min(outer_border[0])>min(inner_border[0]):
+    a = outer_border
+    outer_border = inner_border
+    inner_border = a
+
+
+l_center_line = LineString(center_line)
+l_inner_border = LineString(inner_border)
+l_outer_border = LineString(outer_border)
+road_poly = Polygon(np.vstack((l_outer_border, np.flipud(l_inner_border))))
+print("Is loop/ring? ", l_center_line.is_ring)
+road_poly
     
     
 #%% K1999 algorithm inner and outer border plot
