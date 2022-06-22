@@ -41,7 +41,7 @@ from skimage.morphology import medial_axis, skeletonize
 
 save = False
 save_centerline = True
-flip = True
+flip = False
 k1999 = False
 TUM = True
 rolling_number = 100

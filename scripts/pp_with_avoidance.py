@@ -47,6 +47,8 @@ import pickle
 from dynamic_reconfigure.server import Server
 from ens_voiture_autonome.cfg import PurePursuitConfig
 
+import path_tools
+
 ### Tuning settings #############################
 
 k = 0.4  # Look forward gain (Dynamic look-ahead)
@@ -215,6 +217,8 @@ def load_path_callback(msg):
     global msg_path1
 
     msg=msg.data.split(" ")
+    
+    """
     if (msg[0]=="load" and len(msg)>1):
         path_x = []
         path_y = []
@@ -273,7 +277,29 @@ def load_path_callback(msg):
 
         course_x = path_x
         course_y = path_y
-        rospy.loginfo('traj loaded')
+        rospy.loginfo('traj loaded')"""
+        
+    if (msg[0]=="load"):
+        if len(msg)>1:    
+            msg_path1 = path_tools.load_path(msg[1])
+            pub_full_path.publish(msg_path1)
+
+            path_x = []
+            path_y = []
+            path_yaw = []
+            course_speed = []
+            
+            for i, pose in enumerate(msg_path1.poses):
+                path_x.append(pose.pose.position.x)
+                path_y.append(pose.pose.position.y)
+                orientation_list = [pose.pose.orientation.x, pose.pose.orientation.y, pose.pose.orientation.z, pose.pose.orientation.w]
+                _, _, yaw = euler_from_quaternion(orientation_list)
+                path_yaw.append(yaw)
+                course_speed.append(1)
+            
+            course_x = path_x
+            course_y = path_y
+            course_yaw = path_yaw
         
 
 

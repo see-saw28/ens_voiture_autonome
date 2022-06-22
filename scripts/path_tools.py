@@ -79,7 +79,7 @@ def load_mcp(name):
      
     
    
-    f = open(rospack.get_path('ens_vision')+f'/paths/{name}.npy', 'wb')
+    f = open(rospack.get_path('ens_vision')+f'/paths/{name}.npy', 'rb')
     mcp = np.load(f)
     f.close()
     
@@ -94,7 +94,8 @@ def load_path(name):
     
     
      
-    f = open(rospack.get_path('ens_vision')+f'/paths/{name}.pckl', 'wb')
+    f = open(rospack.get_path('ens_vision')+f'/paths/{name}.pckl', 'rb')
+    
     path = pickle.load(f)
     f.close()
     
@@ -108,7 +109,7 @@ def load_custom_path(name):
      
     if 'custom_path' in  name :
      
-        f = open(rospack.get_path('ens_vision')+f'/paths/{name}.pckl', 'wb')
+        f = open(rospack.get_path('ens_vision')+f'/paths/{name}.pckl', 'rb')
         marker,speeds,orientations,cmd_speeds = pickle.load(f)
         f.close()
         
@@ -170,4 +171,33 @@ def xy_to_path(X,Y):
         path.poses.append(pose)
         
     return path
+
+def save_error(crosstrack,yaw, name='error'):
+     
+    filename=check_file(rospack.get_path('ens_vision')+f'/errors/{name}.npy')
+    
+    f = open(filename, 'wb')
+    error = np.array([crosstrack,yaw])
+    np.save(f, error)
+    f.close()
+    
+    print('saved error :', filename, f' with {len(crosstrack)} points')
+    
+    
+def load_error(name, absolute=False):
+     
+    
+   
+    f = open(rospack.get_path('ens_vision')+f'/errors/{name}.npy', 'rb')
+    error = np.load(f)
+    f.close()
+    
+    print('load error with :', len(error[0]), ' poses')
+    
+    if absolute :
+        return abs(error[0]),abs(error[1])
+    
+    else :
+        return error[0],error[1]
+    
     

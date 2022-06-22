@@ -36,6 +36,7 @@ import rospkg
 import pickle
 from dynamic_reconfigure.server import Server
 from ens_voiture_autonome.cfg import StanleyControllerConfig
+import path_tools
 
 
 ### Tuning settings #################
@@ -180,7 +181,7 @@ def update_state_callback(data):
     orientation_list = [data.pose.pose.orientation.x, data.pose.pose.orientation.y, data.pose.pose.orientation.z, data.pose.pose.orientation.w]
     _, _, yaw = euler_from_quaternion(orientation_list)
     state.yaw = yaw
-
+'''
 def load_path_callback(msg):
     
     global course_x
@@ -259,7 +260,102 @@ def load_path_callback(msg):
         course_y = path_y
         course_yaw = path_yaw
         rospy.loginfo('traj loaded')
+'''
 
+def load_path_callback(msg):
+    
+    global course_x
+    global course_y
+    global course_yaw
+    global course_speed
+    global pub_full_path
+    global msg_path1
+
+    msg=msg.data.split(" ")
+    
+    """
+    if (msg[0]=="load" and len(msg)>1):
+        path_x = []
+        path_y = []
+        course_speed = []
+        
+        # display the path to the look ahead point
+        msg_path1 = Path()
+        msg_path1.header.frame_id = 'map'
+        
+        
+            
+        if 'traj' in msg[1]:   
+        
+       
+            f = open(rospack.get_path('ens_vision')+f'/paths/{msg[1]}.pckl', 'rb')
+            marker,speeds,orientations,cmd_speeds = pickle.load(f)
+            f.close()
+            for i, pose1 in enumerate(marker.points):
+                path_x.append(pose1.x)
+                path_y.append(pose1.y)
+                course_speed.append(cmd_speeds[i])
+                
+                pose = PoseStamped()
+                
+                pose.header.frame_id = "map"
+                pose.header.seq = i
+                
+                pose.pose.position.x = pose1.x
+                pose.pose.position.y = pose1.y
+                
+                msg_path1.poses.append(pose)
+                
+        elif 'mcp' in msg[1]:   
+        
+       
+            f = open(rospack.get_path('ens_voiture_autonome')+f'/paths/{msg[1]}.npy', 'rb')
+            raceline = np.load(f)
+            f.close()
+            for i, position in enumerate(raceline):
+                path_x.append(position[0])
+                path_y.append(position[1])
+                course_speed.append(2)
+                
+                pose = PoseStamped()
+            
+                pose.header.frame_id = "map"
+                pose.header.seq = i
+                
+                
+                pose.pose.position.x = position[0]
+                pose.pose.position.y = position[1]
+                
+                msg_path1.poses.append(pose)
+            
+        pub_full_path.publish(msg_path1)
+
+        course_x = path_x
+        course_y = path_y
+        rospy.loginfo('traj loaded')"""
+        
+    if (msg[0]=="load"):
+        if len(msg)>1:    
+            msg_path1 = path_tools.load_path(msg[1])
+            pub_full_path.publish(msg_path1)
+
+            path_x = []
+            path_y = []
+            path_yaw = []
+            course_speed = []
+            
+            for i, pose in enumerate(msg_path1.poses):
+                path_x.append(pose.pose.position.x)
+                path_y.append(pose.pose.position.y)
+                orientation_list = [pose.pose.orientation.x, pose.pose.orientation.y, pose.pose.orientation.z, pose.pose.orientation.w]
+                _, _, yaw = euler_from_quaternion(orientation_list)
+                path_yaw.append(yaw)
+                course_speed.append(1)
+            
+            course_x = path_x
+            course_y = path_y
+            course_yaw = path_yaw
+        
 def path_callback(data):
     
     global course_x

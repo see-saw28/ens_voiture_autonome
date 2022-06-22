@@ -41,7 +41,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: LaserScan
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -207,7 +207,7 @@ Visualization Manager:
       Marker Topic: /finish_line
       Name: Marker
       Namespaces:
-        {}
+        "": true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -287,7 +287,7 @@ Visualization Manager:
       Radius: 0.029999999329447746
       Shaft Diameter: 0.10000000149011612
       Shaft Length: 0.10000000149011612
-      Topic: /pure_pursuit_path
+      Topic: /local_steering_controller_path
       Unreliable: false
       Value: true
     - Class: rviz/Marker
@@ -300,7 +300,7 @@ Visualization Manager:
       Value: false
     - Class: rviz/Marker
       Enabled: true
-      Marker Topic: /stanley_controller_look_ahead
+      Marker Topic: /local_steering_controller_look_ahead
       Name: Marker
       Namespaces:
         {}
@@ -349,7 +349,7 @@ Visualization Manager:
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
-      Color: 25; 255; 0
+      Color: 52; 101; 164
       Enabled: true
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
@@ -407,7 +407,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 9.015588760375977
+      Distance: 6.199956893920898
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -415,9 +415,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.14242538809776306
-        Y: 0.8079670071601868
-        Z: -0.04394596815109253
+        X: -1.375549077987671
+        Y: 0.8331966400146484
+        Z: -0.04271472245454788
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -425,7 +425,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 0.033572595566511154
+      Yaw: 0.03857259452342987
     Saved: ~
 Window Geometry:
   Displays:
