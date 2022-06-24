@@ -40,11 +40,11 @@ from shapely.geometry.polygon import LinearRing, LineString
 from skimage.morphology import medial_axis, skeletonize
 
 save = False
-save_centerline = True
+save_centerline = False
 flip = False
 k1999 = False
 TUM = True
-rolling_number = 100
+rolling_number = 525
 ros = False
 
 plt.close('all')
@@ -192,7 +192,7 @@ outer_border=[]
 trackline = []
 
 width = 2
-border_width = 0.40
+border_width = 0.3
 
 for i in range(len(xm)):
     
@@ -257,8 +257,8 @@ if TUM:
     alpha_mincurv, curv_error_max = tph.opt_min_curv.opt_min_curv(reftrack=reftrack,
                                                  normvectors=normvec_norm,
                                                  A=M,
-                                                 kappa_bound=0.55,
-                                                 w_veh=0.25,
+                                                 kappa_bound=0.5,
+                                                 w_veh=0.20,
                                                  closed=CLOSED,
                                                  psi_s=psi_s,
                                                  psi_e=psi_e)
@@ -297,7 +297,7 @@ if TUM:
         create_raceline(refline=reftrack[:, :2],
                         normvectors=normvec_norm,
                         alpha=alpha_mincurv,
-                        stepsize_interp=resolution)
+                        stepsize_interp=0.025)
                         
     # ----------------------------------------------------------------------------------------------------------------------
     # CALCULATE HEADING AND CURVATURE --------------------------------------------------------------------------------------
@@ -360,7 +360,7 @@ if TUM:
     
     # arrange data into one trajectory
     trajectory_opt = np.column_stack((raceline_interp,
-                                      psi_vel_opt,
+                                      psi_vel_opt + np.pi/2,
                                       kappa_opt,
                                       vx_profile_opt,
                                       ax_profile_opt,

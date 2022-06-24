@@ -105,12 +105,9 @@ def pure_pursuit_control(state, course_x, course_y):
     ind, ind_car = calc_target_index(state, course_x, course_y)
 
     if ind < len(course_x):
-        target_x = course_x[ind]
-        target_y = course_y[ind]
-    else:
-        target_x = course_x[-1]
-        target_y = course_y[-1]
-        ind = len(course_x) - 1
+        target_x = course_x[ind%len(course_x)]
+        target_y = course_y[ind%len(course_x)]
+    
 
     # Calc angle alpha between the vehicle heading vector and the look-ahead vector
     alpha = math.atan2(target_y - state.y, target_x - state.x) - (state.yaw)
@@ -133,7 +130,7 @@ def pure_pursuit_control(state, course_x, course_y):
     # Calc turning radius
     R = dyn_look_ahead_dist / (2*np.sin(abs(alpha)))
     
-    speed = course_speed[ind_car]
+    speed = course_speed[ind_car%len(course_speed)]
     
     return speed, delta, ind, normalize_angle(alpha), R
 
@@ -280,8 +277,13 @@ def load_path_callback(msg):
         rospy.loginfo('traj loaded')"""
         
     if (msg[0]=="load"):
-        if len(msg)>1:    
-            msg_path1 = path_tools.load_path(msg[1])
+        if len(msg)>1:  
+            if 'mcp' in msg[1]:
+                mcp = path_tools.load_mcp(msg[1])
+                path = path_tools.mcp_to_path(mcp)
+                msg_path1 = path
+            else :
+                msg_path1 = path_tools.load_path(msg[1])
             pub_full_path.publish(msg_path1)
 
             path_x = []

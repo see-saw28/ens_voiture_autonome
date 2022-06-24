@@ -255,7 +255,7 @@ Visualization Manager:
       Marker Topic: /follow_the_gap_marker
       Name: Marker
       Namespaces:
-        {}
+        "": true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -263,7 +263,7 @@ Visualization Manager:
       Marker Topic: /follow_the_gap_obstacle_marker
       Name: Marker
       Namespaces:
-        {}
+        "": true
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -303,7 +303,7 @@ Visualization Manager:
       Marker Topic: /local_steering_controller_look_ahead
       Name: Marker
       Namespaces:
-        {}
+        "": true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -407,7 +407,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 6.199956893920898
+      Distance: 9.615269660949707
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1

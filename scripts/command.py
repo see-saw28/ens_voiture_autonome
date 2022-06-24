@@ -37,7 +37,7 @@ from sensor_msgs.msg import Joy
 from geometry_msgs.msg import Vector3Stamped
 from std_msgs.msg import Float32, Bool
 from nav_msgs.msg import Path, Odometry
-
+import math
 
 x = 0.0
 z = 0.0
@@ -47,24 +47,30 @@ rospy.init_node('command', anonymous=False)
 rate = rospy.Rate(pub_freq)
 pub = rospy.Publisher('/pwm',Float32,queue_size=5)
 
-pub_vel = rospy.Publisher('/vel',Float32,queue_size=5)
+pub_vel = rospy.Publisher('/vel',Twist,queue_size=5)
+wheelbase=0.3
+print(wheelbase)
 
 def odom_callback(data):
     
     global velocity_mes
+    
     velocity_mes = -data.twist.twist.linear.x
-    msg = Float32()
-    msg.data = velocity_mes
+    
+    msg = Twist()
+    msg.linear.x = velocity_mes
+    if velocity_mes > 0.1 :
+        steer = math.atan2(data.twist.twist.angular.z * wheelbase, velocity_mes)
+        msg.angular.z = steer
     pub_vel.publish(msg)
 
-wheelbase=0.3
-print(wheelbase)
+
 old_x=1
 def callback(msg):
 #	print('test')
 	global old_x
 	x = msg.linear.x
-	z = msg.angular.z
+	z = 1.0*msg.angular.z
 #	print(x,z)
 	vit=0.5
 	x=x/np.cos(z)
@@ -90,13 +96,13 @@ def callback(msg):
 
 	elif (x<0):
         
-		if velocity_mes>0.1:
-			pwm = 6.5
-		elif velocity_mes>0:
-			pwm = 7.52
-		else:
+#		if velocity_mes>0.1:
+#			pwm = 6.5
+#		elif velocity_mes>0:
+#			pwm = 7.52
+#		else:
 
-			pwm=7.5-vit*x
+		pwm=7.5-vit*x
 	old_x=x
 #	print(z)
 	p.ChangeDutyCycle(5.2-z/0.30)

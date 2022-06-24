@@ -335,8 +335,13 @@ def load_path_callback(msg):
         rospy.loginfo('traj loaded')"""
         
     if (msg[0]=="load"):
-        if len(msg)>1:    
-            msg_path1 = path_tools.load_path(msg[1])
+        if len(msg)>1: 
+            if 'mcp' in msg[1]:
+                mcp = path_tools.load_mcp(msg[1])
+                path = path_tools.mcp_to_path(mcp)
+                msg_path1 = path
+            else :
+                msg_path1 = path_tools.load_path(msg[1])
             pub_full_path.publish(msg_path1)
 
             path_x = []
