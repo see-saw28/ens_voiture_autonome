@@ -501,7 +501,7 @@ if __name__ == '__main__':
     try:
         # init node
         rospy.init_node('pure_pursuit_with_avoidance')
-        rate = rospy.Rate(100) # hz
+        rate = rospy.Rate(15) # hz
         rospack = rospkg.RosPack()
        
         main()

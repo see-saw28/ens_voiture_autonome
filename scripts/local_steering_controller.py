@@ -72,6 +72,7 @@ def dwa_control(x, config, goal, ob):
     Dynamic Window Approach control
     """
     dw = calc_dynamic_window(x, config)
+    
 
     u, trajectory = calc_control_and_trajectory(x, dw, config, goal, ob)
 
@@ -204,9 +205,9 @@ def calc_dynamic_window(x, config):
     Vs = [-config.max_steering_angle, config.max_steering_angle]
 
     # Dynamic window from motion model
-    Vd = [x[4] - config.steering_speed * config.dt,
-          x[4] + config.steering_speed * config.dt]
-
+    Vd = [x[5] - config.steering_speed * config.dt,
+          x[5] + config.steering_speed * config.dt]
+    
     #  [steer_min, steer_max]
     dw = [max(Vs[0], Vd[0]), min(Vs[1], Vd[1])]
 
@@ -620,7 +621,8 @@ def odom_callback(data):
     
     global x_robot
     
-    x_robot = np.array([0.0, 0.0, 0.0, -data.twist.twist.linear.x, data.twist.twist.angular.z])
+    x_robot[3] = -data.twist.twist.linear.x
+    x_robot[4] = data.twist.twist.angular.z
     
 def collision_callback(data):
     
@@ -691,8 +693,8 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
     tf_br = tf.TransformBroadcaster()
     
   
-    # initial state [x(m), y(m), yaw(rad), v(m/s), omega(rad/s)]
-    x_robot = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+    # initial state [x(m), y(m), yaw(rad), v(m/s), omega(rad/s),steer(rad)]
+    x_robot = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     # goal position [x(m), y(m)]
     goal = np.array([gx, gy])
 
@@ -717,7 +719,7 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
                     publish_marker(marker_pub, goal[0], goal[1])
             u, predicted_trajectory = dwa_control(x_robot, config, goal, ob)
             steer = u
-            x_robot[4] = u
+            x_robot[5] = u
             
             
             # rospy.loginfo(v, steer)

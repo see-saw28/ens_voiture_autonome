@@ -626,7 +626,7 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
     global x_robot
     # init node
     rospy.init_node('dwa')
-    rate = rospy.Rate(100) # hz
+    rate = rospy.Rate(15) # hz
     
     pub = rospy.Publisher('dwa_cmd', Twist, queue_size=100)
     pub_path = rospy.Publisher('dwa_path', Path, queue_size=100)
@@ -669,7 +669,7 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
             publish_marker(marker_pub, goal[0], goal[1])
         u, predicted_trajectory = dwa_control(x_robot, config, goal, ob)
         v,steer = u
-        x_robot[3] = u[0]
+        
         x_robot[5] = u[1]
         
         # rospy.loginfo(v, steer)
@@ -698,7 +698,7 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
         pub_path.publish(msg_path)
         # x = motion(x, u, config.dt)  # simulate robot
         # trajectory = np.vstack((trajectory, x))  # store state history
-        
+        rate.sleep()
         
 
         if show_animation:
@@ -717,11 +717,7 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
             plt.grid(True)
             plt.pause(0.0001)
 
-        # check reaching goal
-        dist_to_goal = math.hypot(x_robot[0] - goal[0], x_robot[1] - goal[1])
-        if dist_to_goal <= config.robot_radius:
-            rospy.loginfo("Goal!!")
-            break
+        
 
     rospy.loginfo("Done")
    

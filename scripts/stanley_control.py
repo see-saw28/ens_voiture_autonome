@@ -415,7 +415,7 @@ def main():
     global pub_full_path
     # init node
     rospy.init_node('stanley_controller')
-    rate = rospy.Rate(10) # hz
+    rate = rospy.Rate(15) # hz
 
     # Publish
     pub = rospy.Publisher('stanley_control_cmd', Twist, queue_size=10)

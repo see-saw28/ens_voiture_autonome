@@ -44,7 +44,7 @@ save_centerline = False
 flip = False
 k1999 = False
 TUM = True
-rolling_number = 525
+rolling_number = 560
 ros = False
 
 plt.close('all')
@@ -52,7 +52,7 @@ plt.close('all')
 import rospkg
 rospack = rospkg.RosPack()
 
-map_name = 'test_map1_clean'
+map_name = 'map5'
 
 with open(rospack.get_path('ens_voiture_autonome')+f'/map/{map_name}.yaml') as file:
     # The FullLoader parameter handles the conversion from YAML
@@ -192,7 +192,7 @@ outer_border=[]
 trackline = []
 
 width = 2
-border_width = 0.3
+border_width = 0.25
 
 for i in range(len(xm)):
     
@@ -257,7 +257,7 @@ if TUM:
     alpha_mincurv, curv_error_max = tph.opt_min_curv.opt_min_curv(reftrack=reftrack,
                                                  normvectors=normvec_norm,
                                                  A=M,
-                                                 kappa_bound=0.5,
+                                                 kappa_bound=0.6,
                                                  w_veh=0.20,
                                                  closed=CLOSED,
                                                  psi_s=psi_s,
@@ -297,7 +297,7 @@ if TUM:
         create_raceline(refline=reftrack[:, :2],
                         normvectors=normvec_norm,
                         alpha=alpha_mincurv,
-                        stepsize_interp=0.025)
+                        stepsize_interp=0.01)
                         
     # ----------------------------------------------------------------------------------------------------------------------
     # CALCULATE HEADING AND CURVATURE --------------------------------------------------------------------------------------

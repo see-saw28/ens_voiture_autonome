@@ -207,7 +207,7 @@ Visualization Manager:
       Marker Topic: /finish_line
       Name: Marker
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -255,12 +255,12 @@ Visualization Manager:
       Marker Topic: /follow_the_gap_marker
       Name: Marker
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
       Enabled: true
-      Marker Topic: /follow_the_gap_obstacle_marker
+      Marker Topic: /stanley_controller_look_ahead
       Name: Marker
       Namespaces:
         "": true
@@ -287,7 +287,7 @@ Visualization Manager:
       Radius: 0.029999999329447746
       Shaft Diameter: 0.10000000149011612
       Shaft Length: 0.10000000149011612
-      Topic: /local_steering_controller_path
+      Topic: /pure_pursuit_path
       Unreliable: false
       Value: true
     - Class: rviz/Marker
@@ -407,7 +407,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 9.615269660949707
+      Distance: 5.919900894165039
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -415,9 +415,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -1.375549077987671
-        Y: 0.8331966400146484
-        Z: -0.04271472245454788
+        X: 0.36007916927337646
+        Y: 1.1365666389465332
+        Z: -0.04446075111627579
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
