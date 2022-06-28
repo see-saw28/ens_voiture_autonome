@@ -19,7 +19,7 @@ Panels:
         - /Marker7
         - /Marker8
         - /Marker9
-        - /Path5
+        - /Path4
         - /Axes2
       Splitter Ratio: 0.5
     Tree Height: 566
@@ -41,7 +41,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: LaserScan
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -98,7 +98,7 @@ Visualization Manager:
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.10000000149011612
+      Size (m): 0.07000000029802322
       Style: Flat Squares
       Topic: /scan
       Unreliable: false
@@ -207,7 +207,7 @@ Visualization Manager:
       Marker Topic: /finish_line
       Name: Marker
       Namespaces:
-        {}
+        "": true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -221,8 +221,8 @@ Visualization Manager:
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
-      Color: 92; 53; 102
-      Enabled: false
+      Color: 25; 255; 0
+      Enabled: true
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
@@ -239,9 +239,9 @@ Visualization Manager:
       Radius: 0.029999999329447746
       Shaft Diameter: 0.10000000149011612
       Shaft Length: 0.10000000149011612
-      Topic: /pure_pursuit_path
+      Topic: /testing_lap_path_amcl
       Unreliable: false
-      Value: false
+      Value: true
     - Class: rviz/Marker
       Enabled: false
       Marker Topic: /aeb_marker
@@ -260,7 +260,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/Marker
       Enabled: true
-      Marker Topic: /stanley_controller_look_ahead
+      Marker Topic: /pure_pursuit_look_ahead
       Name: Marker
       Namespaces:
         "": true
@@ -287,7 +287,7 @@ Visualization Manager:
       Radius: 0.029999999329447746
       Shaft Diameter: 0.10000000149011612
       Shaft Length: 0.10000000149011612
-      Topic: /pure_pursuit_path
+      Topic: /dwa_path
       Unreliable: false
       Value: true
     - Class: rviz/Marker
@@ -303,7 +303,7 @@ Visualization Manager:
       Marker Topic: /local_steering_controller_look_ahead
       Name: Marker
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -325,7 +325,7 @@ Visualization Manager:
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
-      Color: 25; 255; 0
+      Color: 92; 53; 102
       Enabled: false
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
@@ -343,7 +343,7 @@ Visualization Manager:
       Radius: 0.029999999329447746
       Shaft Diameter: 0.10000000149011612
       Shaft Length: 0.10000000149011612
-      Topic: /local_steering_controller_path
+      Topic: /testing_lap_path_aruco
       Unreliable: false
       Value: false
     - Alpha: 1
@@ -376,7 +376,7 @@ Visualization Manager:
       Length: 0.20000000298023224
       Name: Axes
       Radius: 0.05000000074505806
-      Reference Frame: camera
+      Reference Frame: marker_0
       Show Trail: false
       Value: true
   Enabled: true
@@ -407,7 +407,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 5.919900894165039
+      Distance: 7.425923824310303
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1

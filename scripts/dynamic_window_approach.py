@@ -12,7 +12,7 @@ author: Atsushi Sakai (@Atsushi_twi), Göktuğ Karakaşlı
 
 import math
 from enum import Enum
-import time
+
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,11 +21,10 @@ from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Bool,String, Float32
 from geometry_msgs.msg import Twist, PoseWithCovarianceStamped, PoseStamped, Point, Vector3, Quaternion, Pose
-import numpy as np
+
 from nav_msgs.msg import Path, Odometry
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
-import tf
-import pickle
+
 import rospkg
 from visualization_msgs.msg import Marker
 from std_msgs.msg import Header, ColorRGBA, String
@@ -42,6 +41,8 @@ course_x = []
 course_y = []
 
 old_u = [0.0, 0.0]
+
+frequency = 15
 
 class State:
 
@@ -86,7 +87,7 @@ class Config:
         self.steering_resolution = 0.05  # [rad]
         self.steering_speed = 3.0 # rad/s
         self.wheelbase = 0.257
-        self.dt = 0.1  # [s] Time tick for motion prediction
+        self.dt = 1/frequency  # [s] Time tick for motion prediction
         self.predict_time_og = 1.0  # [s]
         self.predict_time = 1.0  # [s]
         self.to_goal_cost_gain = 0.30
@@ -363,7 +364,7 @@ def calc_goal_coord(state, course_x, course_y):
     # adapted from: https://github.com/AtsushiSakai/PythonRobotics/tree/master/PathTracking/pure_pursuit
 
 
-    dyn_look_ahead_dist = k * x_robot[3] + look_ahead_dist
+    dyn_look_ahead_dist = k * max(0,x_robot[3]) + look_ahead_dist
     # search nearest point index
     
     dx = [state.x - icx for icx in course_x]
@@ -626,7 +627,7 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
     global x_robot
     # init node
     rospy.init_node('dwa')
-    rate = rospy.Rate(15) # hz
+    rate = rospy.Rate(frequency) # hz
     
     pub = rospy.Publisher('dwa_cmd', Twist, queue_size=100)
     pub_path = rospy.Publisher('dwa_path', Path, queue_size=100)
@@ -643,8 +644,6 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
 
     srv = Server(DWAConfig, callback)
     
-    # Start a TF broadcaster
-    tf_br = tf.TransformBroadcaster()
     
   
     # initial state [x(m), y(m), yaw(rad), v(m/s), omega(rad/s), steer(rad)]
@@ -657,9 +656,7 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
     config.robot_type = robot_type
     trajectory = np.array(x_robot)
     ob = config.ob
-    
-    wheelbase = 0.257
-    max_steering_angle = 0.3
+
     
     while not rospy.is_shutdown() :
         ob = config.ob
