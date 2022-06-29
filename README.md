@@ -180,3 +180,39 @@ roslaunch ens_voiture_autonome navigation.launch sim:=false map:=nom_carte
 ```bat
 roslaunch ens_voiture_autonome exploration.launch sim:=false 
 ```
+
+# Reactive method
+
+## Follow the gap
+
+# Path planning
+
+## Minimum curvature path by TUMFTM
+
+Integration of the MCP algorithm of TUMFTM for ROS
+
+ROS map -> MCP Path -> ROS Path (via Path tools)
+
++ generate the centerline of a track
+
+### Parameters  
+* save : bool
+* save_centerline : bool :
+* flip : bool :change the direction of rotation of the path
+* rolling_number : int : change the starting point on the path
+
+# Path tracking
+
+## Pure Pursuit
+
+## Stanley control
+
+## Dynamic window approach (adapted for car like robot)
+
+## Local steering controller (derivated from DWA only for steering)
+
+# Safety
+
+## AEB (automatic emergency breaking)
+
+## Stuck detector
