@@ -180,6 +180,45 @@ roslaunch ens_voiture_autonome navigation.launch sim:=false map:=nom_carte
 ```bat
 roslaunch ens_voiture_autonome exploration.launch sim:=false 
 ```
+# Teleop 
+
+## Keyboard teleop
+
+```bash
+rosrun teleop_twist_keyboard teleop_twist_keyboard.py cmd_vel:=keyboard_cmd _speed:=1.0 _turn:=0.3
+```
+
+## DualShock 4
+```bash
+rosrun ens_voiture_autonome DS4_ROS.py
+```
+
+## Central controller
+
+```bash
+rosrun ens_voiture_autonome joy_to_cmd_vel.py
+```
+
+* Calculate the speed command
+* Check safety flag
+* Control backward motion in stuck situation
+
+### Subscribed topics
+* /DS4_input
+* /keyboard_cmd
+* /pure_pursuit_cmd
+* /stanley_control_cmd
+* /local_steering_controller_cmd
+* /dwa_cmd
+* /move_base_cmd
+* /follow_the_gap_cmd
+* /AEB
+* /collision
+* /stuck
+* /camera/odom/sample
+
+### Published topic
+* /cmd_vel
 
 # Reactive method
 
@@ -205,14 +244,82 @@ ROS map -> MCP Path -> ROS Path (via Path tools)
 
 ## Pure Pursuit
 
+### Subscribed topics
+* /amcl_pose
+* /syscommand
+* /mcp_path
+* /camera/odom/sample
+* /scan (Optional)
+
+### Published topics
+* /pure_pursuit_cmd
+* /pure_pursuit_look_ahead
+* /pure_pursuit_path
+* /collision (Optional)
+* /collision_check (Optional)
+
 ## Stanley control
+
+### Subscribed topics
+* /amcl_pose
+* /syscommand
+* /mcp_path
+* /camera/odom/sample
+
+### Published topics
+* /stanley_control_cmd
+* /stanley_controller_look_ahead
 
 ## Dynamic window approach (adapted for car like robot)
 
+### Subscribed topics
+* /amcl_pose
+* /syscommand
+* /mcp_path
+* /camera/odom/sample
+* /scan 
+
+### Published topics
+* /dwa_cmd
+* /daw_look_ahead
+* /dwa_path
+
+
 ## Local steering controller (derivated from DWA only for steering)
+
+### Subscribed topics
+* /amcl_pose
+* /syscommand
+* /mcp_path
+* /camera/odom/sample
+* /scan 
+* /collision (optional)
+
+### Published topics
+* /local_steering_controller_cmd
+* /local_steering_controller_look_ahead
+* /local_steering_controller_path
 
 # Safety
 
 ## AEB (automatic emergency breaking)
 
+### Subscribed topics
+* /cmd_vel or /vel
+* /camera/odom/sample
+* /scan 
+
+
+### Published topics
+* /AEB
+* /aeb_marker
+
 ## Stuck detector
+
+### Subscribed topics
+* /camera/odom/sample
+* /scan 
+
+
+### Published topic
+* /stuck
