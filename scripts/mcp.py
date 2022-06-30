@@ -32,7 +32,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os.path
 import math
-
+from ens_vision import path_tools
 
 import copy
 from shapely.geometry import Point, Polygon
@@ -64,7 +64,7 @@ origin = param['origin']
 #%% Centerline extraction
 with open(rospack.get_path('ens_voiture_autonome')+'/map/'+param['image'], 'rb') as pgmf:
     im = plt.imread(pgmf)
-    
+
 # plt.imshow(im)
 
 
@@ -130,7 +130,7 @@ while len(x)>0:
     dy = [ys[-1] - icy for icy in y]
     d = [math.sqrt(idx ** 2 + idy ** 2)for (idx, idy) in zip(dx, dy)]
     ind = d.index(min(d))
-    
+
     if min(d)<10 and i%1==0:
         xs.append(x.pop(ind))
         ys.append(y.pop(ind))
@@ -139,13 +139,13 @@ while len(x)>0:
         y.pop(ind)
     i+=1
 
- 
+
 
 xs = np.roll(np.array(xs),rolling_number)
 ys = np.roll(np.array(ys),rolling_number)
 
-  
-if flip :   
+
+if flip :
     xs = np.flip(xs)
     ys = np.flip(ys)
 
@@ -195,10 +195,10 @@ width = 2
 border_width = 0.25
 
 for i in range(len(xm)):
-    
+
     vect = (xm[(i-width)%len(xm)]-xm[(i+width)%len(xm)],ym[(i-width)%len(xm)]-ym[(i+width)%len(xm)])
     vect_norm = vect/np.sqrt(vect[0]**2 + vect[1]**2)
-    
+
     center_line.append((xm[i],ym[i]))
     per_vect = np.array((vect_norm[1],-vect_norm[0]))
     # distance = np.sqrt(np.sum((np.array(zeros)-np.array(([ysf[i]],[xsf[i]])))**2,axis=0)).min()
@@ -211,11 +211,11 @@ for i in range(len(xm)):
     outer_border.append((xm[i],ym[i])+per_vect*border_width)
     # trackline.append([xm[i],ym[i],resolution*edt[ys[i],xs[i]],resolution*edt[ys[i],xs[i]]])
     trackline.append([xm[i],ym[i],border_width,border_width])
-     
+
 center_line.append(center_line[0])
 inner_border.append(inner_border[0])
-outer_border.append(outer_border[0])  
-# trackline.append(trackline[0])   
+outer_border.append(outer_border[0])
+# trackline.append(trackline[0])
 trackline = np.array(trackline)
 
 
@@ -250,10 +250,10 @@ if TUM:
         coeffs_x, coeffs_y, M, normvec_norm = tph.calc_splines.calc_splines(path=reftrack[:, 0:2],
                                                            psi_s=psi_s,
                                                            psi_e=psi_e)
-    
+
         # extend norm-vec to same size of ref track (quick fix for testing only)
         normvec_norm = np.vstack((normvec_norm[0, :], normvec_norm))
-    
+
     alpha_mincurv, curv_error_max = tph.opt_min_curv.opt_min_curv(reftrack=reftrack,
                                                  normvectors=normvec_norm,
                                                  A=M,
@@ -262,13 +262,13 @@ if TUM:
                                                  closed=CLOSED,
                                                  psi_s=psi_s,
                                                  psi_e=psi_e)
-    
+
     # --- PLOT RESULTS ---
     path_result = reftrack[:, 0:2] + normvec_norm * np.expand_dims(alpha_mincurv, axis=1)
     bound1 = reftrack[:, 0:2] - normvec_norm * np.expand_dims(reftrack[:, 2], axis=1)
     bound2 = reftrack[:, 0:2] + normvec_norm * np.expand_dims(reftrack[:, 3], axis=1)
-    
-    
+
+
     plt.figure(figsize=(8,6))
     size = 0.5
     dx,dy = reftrack[1,0] - reftrack[0,0], reftrack[1,1] - reftrack[0,1]
@@ -279,39 +279,39 @@ if TUM:
     # ax4.plot(path_result[:, 0], path_result[:, 1])
     plt.plot(bound1[:, 0], bound1[:, 1], 'k')
     plt.plot(bound2[:, 0], bound2[:, 1], 'k')
-    
+
     plt.axis('equal')
     plt.show()
-    
-    
-    
-    
-   
-    
+
+
+
+
+
+
     # ----------------------------------------------------------------------------------------------------------------------
     # INTERPOLATE SPLINES TO SMALL DISTANCES BETWEEN RACELINE POINTS -------------------------------------------------------
     # ----------------------------------------------------------------------------------------------------------------------
-    
+
     raceline_interp, a_opt, coeffs_x_opt, coeffs_y_opt, spline_inds_opt_interp, t_vals_opt_interp, s_points_opt_interp,\
         spline_lengths_opt, el_lengths_opt_interp = tph.create_raceline.\
         create_raceline(refline=reftrack[:, :2],
                         normvectors=normvec_norm,
                         alpha=alpha_mincurv,
                         stepsize_interp=0.01)
-                        
+
     # ----------------------------------------------------------------------------------------------------------------------
     # CALCULATE HEADING AND CURVATURE --------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------------------------------
-                        
+
     # calculate heading and curvature (analytically)
     psi_vel_opt, kappa_opt = tph.calc_head_curv_an.\
         calc_head_curv_an(coeffs_x=coeffs_x_opt,
                           coeffs_y=coeffs_y_opt,
                           ind_spls=spline_inds_opt_interp,
                           t_spls=t_vals_opt_interp)
-    accel = 8.0                    
+    accel = 8.0
     ggv = np.array([[0,accel,accel],[1,accel,accel],[2,accel,accel],[2.5,accel,accel]])
-    ax_max_machines = np.array([[0,accel],[1,accel],[2,accel],[3.0,accel]])                   
+    ax_max_machines = np.array([[0,accel],[1,accel],[2,accel],[3.0,accel]])
     vx_profile_opt = tph.calc_vel_profile.\
             calc_vel_profile(ggv=ggv,
                              ax_max_machines=ax_max_machines,
@@ -323,7 +323,7 @@ if TUM:
                              dyn_model_exp=1,
                              drag_coeff=0.75,
                              m_veh=3.0)
-    
+
     # calculate longitudinal acceleration profile
     vx_profile_opt_cl = np.append(vx_profile_opt, vx_profile_opt[0])
     ax_profile_opt = tph.calc_ax_profile.calc_ax_profile(vx_profile=vx_profile_opt_cl,
@@ -332,32 +332,32 @@ if TUM:
     # ----------------------------------------------------------------------------------------------------------------------
     # CALCULATE VELOCITY AND ACCELERATION PROFILE --------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------------------------------
-    
+
     # calculate laptime
     t_profile_cl = tph.calc_t_profile.calc_t_profile(vx_profile=vx_profile_opt,
                                                      ax_profile=ax_profile_opt,
                                                      el_lengths=el_lengths_opt_interp)
     print("INFO: Estimated laptime: %.2fs" % t_profile_cl[-1])
-    
+
     if True:
         plt.figure(figsize=(8,6))
         s_points = np.cumsum(el_lengths_opt_interp[:-1])
         s_points = np.insert(s_points, 0, 0.0)
-    
+
         plt.plot(s_points, vx_profile_opt)
         plt.plot(s_points, ax_profile_opt)
         plt.plot(s_points, t_profile_cl[:-1])
-    
+
         plt.grid()
         plt.xlabel("distance in m")
         plt.legend(["vx in m/s", "ax in m/s2", "t in s"])
-    
+
         plt.show()
-    
+
     # ----------------------------------------------------------------------------------------------------------------------
     # DATA POSTPROCESSING --------------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------------------------------
-    
+
     # arrange data into one trajectory
     trajectory_opt = np.column_stack((raceline_interp,
                                       psi_vel_opt + np.pi/2,
@@ -366,27 +366,27 @@ if TUM:
                                       ax_profile_opt,
                                       s_points_opt_interp))
     spline_data_opt = np.column_stack((spline_lengths_opt, coeffs_x_opt, coeffs_y_opt))
-    
+
     # create a closed race trajectory array
     traj_race_cl = np.vstack((trajectory_opt, trajectory_opt[0, :]))
     traj_race_cl[-1, -1] = np.sum(spline_data_opt[:, -1])  # set correct length
-    
-    
-    import path_tools
-       
-    if save :  
+
+
+
+
+    if save :
         path_tools.save_mcp(traj_race_cl)
-        
-        
-    if save_centerline :  
+
+
+    if save_centerline :
         path = path_tools.xy_to_path(reftrack[:, 0],reftrack[:, 1])
         path_tools.save_path(path, 'centerline')
-   
-    
- 
+
+
+
 
 print(min(outer_border[1]),min(inner_border[1]))
- 
+
 if min(outer_border[0])>min(inner_border[0]):
     a = outer_border
     outer_border = inner_border
@@ -399,34 +399,34 @@ l_outer_border = LineString(outer_border)
 road_poly = Polygon(np.vstack((l_outer_border, np.flipud(l_inner_border))))
 print("Is loop/ring? ", l_center_line.is_ring)
 road_poly
-    
-    
+
+
 #%% K1999 algorithm inner and outer border plot
 
-def plot_coords(ax, ob):                                                        
-    x, y = ob.xy                                                                
-    ax.plot(x, y, '.', color='#999999', zorder=1)                               
-                                                                                
-def plot_bounds(ax, ob):                                                        
-    x, y = zip(*list((p.x, p.y) for p in ob.boundary))                          
-    ax.plot(x, y, '.', color='#000000', zorder=1)                               
-                                                                                
-def plot_line(ax, ob):                                                          
-    x, y = ob.xy                                                                
+def plot_coords(ax, ob):
+    x, y = ob.xy
+    ax.plot(x, y, '.', color='#999999', zorder=1)
+
+def plot_bounds(ax, ob):
+    x, y = zip(*list((p.x, p.y) for p in ob.boundary))
+    ax.plot(x, y, '.', color='#000000', zorder=1)
+
+def plot_line(ax, ob):
+    x, y = ob.xy
     ax.plot(x, y, color='cyan', alpha=0.7, linewidth=3, solid_capstyle='round', zorder=2)
-                                                                                
+
 def print_border(ax, waypoints, inner_border_waypoints, outer_border_waypoints):
-    line = LineString(waypoints)                                                
-    plot_coords(ax, line)                                                       
-    plot_line(ax, line)                                                         
-                                                                                
-    line = LineString(inner_border_waypoints)                                   
-    plot_coords(ax, line)                                                       
-    plot_line(ax, line)                                                         
-                                                                                
-    line = LineString(outer_border_waypoints)                                   
-    plot_coords(ax, line)                                                       
-    plot_line(ax, line)     
+    line = LineString(waypoints)
+    plot_coords(ax, line)
+    plot_line(ax, line)
+
+    line = LineString(inner_border_waypoints)
+    plot_coords(ax, line)
+    plot_line(ax, line)
+
+    line = LineString(outer_border_waypoints)
+    plot_coords(ax, line)
+    plot_line(ax, line)
 
 fig1 = plt.figure(1, figsize=(16, 10))
 ax = fig1.add_subplot(111, facecolor='black')
@@ -540,7 +540,7 @@ def improve_race_line(old_line, inner_border, outer_border):
         # New point which has mid-curvature of prev and next points but may be outside of track
         #print((new_line[i], new_xi))
         new_line[i] = new_xi
-        
+
     return new_line
 
 if k1999 :
@@ -551,23 +551,23 @@ if k1999 :
     for i in range(LINE_ITERATIONS):
         race_line = improve_race_line(race_line, inner_border, outer_border)
         if i % 20 == 0: print("Iteration %d" % i)
-    
-    
-    
-    
+
+
+
+
     # need to put duplicate point race_line[0] at race_line[-1] to make a closed loops
     loop_race_line = np.append(race_line, [race_line[0]], axis=0)
-    
+
     # These should be the same
     print("These should be the same: ", (len(center_line), loop_race_line.shape))
     print("Original centerline length: %0.2f" % l_center_line.length)
     print("New race line length: %0.2f" % LineString(loop_race_line).length)
-    
+
     fig = plt.figure(1, figsize=(16, 10))
     ax = fig.add_subplot(111, facecolor='black')
     plt.axis('equal')
     print_border(ax, loop_race_line, inner_border, outer_border)
-    
+
     def check_file(filePath):
         if os.path.exists(filePath):
             numb = 1
@@ -577,20 +577,20 @@ if k1999 :
                     numb += 1
                 else:
                     return newPath
-        return filePath 
-       
+        return filePath
+
     if save:
         import rospkg
         rospack = rospkg.RosPack()
-             
+
         filename=check_file(rospack.get_path('ens_voiture_autonome')+'/paths/mcp.npy')
-        
+
         f = open(filename, 'wb')
         np.save(f, loop_race_line)
         f.close()
-        
+
         print('saved mcp path :', filename)
-    
+
 
 
 if ros:
@@ -602,70 +602,70 @@ if ros:
         pub_path1 = rospy.Publisher('centerline_path', Path, queue_size=10)
         pub_path2 = rospy.Publisher('mcp_tum_path', Path, queue_size=10)
         # display the path to the look ahead point
-        
+
         if k1999 :
             msg_path = Path()
             msg_path.header.frame_id = 'map'
-            
-            
-                
+
+
+
             for i,position in enumerate(loop_race_line):
-                
-                
+
+
                 pose = PoseStamped()
-                
+
                 pose.header.frame_id = "map"
                 pose.header.seq = i
-                
+
                 print(position)
                 pose.pose.position.x = position[0]
                 pose.pose.position.y = position[1]
-                
+
                 msg_path.poses.append(pose)
-                
+
             pub_path.publish(msg_path)
-            
+
         if TUM :
             msg_path2 = Path()
             msg_path2.header.frame_id = 'map'
-            
-            
-                
+
+
+
             for i,position in enumerate(path_result):
-                
-                
+
+
                 pose = PoseStamped()
-                
+
                 pose.header.frame_id = "map"
                 pose.header.seq = i
-                
+
                 print(position)
                 pose.pose.position.x = position[0]
                 pose.pose.position.y = position[1]
-                
+
                 msg_path2.poses.append(pose)
-                
+
             pub_path2.publish(msg_path2)
-        
+
         msg_path1 = Path()
         msg_path1.header.frame_id = 'map'
-        
-        
-            
+
+
+
         for i,position in enumerate(center_line):
-            
-            
+
+
             pose = PoseStamped()
-            
+
             pose.header.frame_id = "map"
             pose.header.seq = i
-            
+
             print(position)
             pose.pose.position.x = position[0]
             pose.pose.position.y = position[1]
-            
+
             msg_path1.poses.append(pose)
-            
+
         while not rospy.is_shutdown():
             if k1999:
                 pub_path.publish(msg_path)

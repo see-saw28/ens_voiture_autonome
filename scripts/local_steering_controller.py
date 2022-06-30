@@ -28,7 +28,7 @@ import rospkg
 
 from dynamic_reconfigure.server import Server
 from ens_voiture_autonome.cfg import LSCConfig
-import path_tools
+from ens_vision import path_tools
 
 ANIMATION = False
 

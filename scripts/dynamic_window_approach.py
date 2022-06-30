@@ -31,7 +31,7 @@ from std_msgs.msg import Header, ColorRGBA, String
 
 from dynamic_reconfigure.server import Server
 from ens_voiture_autonome.cfg import DWAConfig
-import path_tools
+from ens_vision import path_tools
 
 
 show_animation = False
@@ -139,45 +139,45 @@ def callback(cfg, level):
     global work_with_pp
     global k
     global look_ahead_dist
-    
+
     config.max_yaw_rate = cfg['max_yaw_rate']
 
     config.max_steering_angle = cfg['max_steering_angle']
     config.steering_resolution = cfg['steering_resolution']
     config.steering_speed = cfg['steering_speed']
-    
+
     config.max_speed = cfg['max_speed']
     config.min_speed = cfg['min_speed']
     config.max_accel = cfg['max_accel']
     config.v_resolution = cfg['v_resolution']
-    
-    
+
+
     config.dt = cfg['dt']
     config.predict_time_og = cfg['predict_time']
     config.predict_time = cfg['predict_time']
-    
+
     config.to_goal_cost_gain = cfg['to_goal_cost_gain']
     config.speed_cost_gain = cfg['speed_cost_gain']
     config.obstacle_cost_gain = cfg['obstacle_cost_gain']
-    
+
     config.wheelbase = cfg['wheelbase_length']
     robot_type = cfg['robot_type']
     if robot_type == 0:
         config.robot_type = RobotType.circle
-    else : 
+    else :
         config.robot_type = RobotType.rectangle
     config.robot_radius = cfg['robot_radius']
     config.robot_width = cfg['robot_width']
     config.robot_length = cfg['robot_length']
-    
-    
+
+
     k = cfg['k']
     look_ahead_dist = cfg['look_ahead_dist']
-   
-    
-    
-            
-    
+
+
+
+
+
     return cfg
 
 
@@ -210,7 +210,7 @@ def calc_dynamic_window(x, config):
 
     #  [v_min, v_max, steer_min, steer_max]
     dw = [max(Vs[0], Vd[0]), min(Vs[1], Vd[1]), max(Vs[2], Vd[2]), min(Vs[3], Vd[3])]
-   
+
     return dw
 
 
@@ -222,7 +222,7 @@ def predict_trajectory(x_init, v, steer, config):
     x = np.array(x_init)
     trajectory = np.array(x)
     time = 0
-    # v = Rw et tan(steer) = Wb/R donc w = v/ R 
+    # v = Rw et tan(steer) = Wb/R donc w = v/ R
     y = v*np.tan(steer)/config.wheelbase
     while time <= config.predict_time:
         x = motion(x, [v, y], config.dt)
@@ -236,7 +236,7 @@ def calc_control_and_trajectory(x, dw, config, goal, ob):
     """
     calculation final input with dynamic window
     """
-    
+
     global old_u
 
     x_init = x[:]
@@ -247,9 +247,9 @@ def calc_control_and_trajectory(x, dw, config, goal, ob):
     # evaluate all trajectory with sampled input in dynamic window
     for v in np.arange(dw[0], dw[1], config.v_resolution):
         for y in np.arange(dw[2], dw[3], config.steering_resolution):
-            
+
             yaw = v*np.tan(y)/config.wheelbase
-            
+
             if abs(yaw)>config.max_yaw_rate :
                 final_cost = np.inf
             else :
@@ -258,9 +258,9 @@ def calc_control_and_trajectory(x, dw, config, goal, ob):
                 to_goal_cost = config.to_goal_cost_gain * calc_to_goal_cost(trajectory, goal)
                 speed_cost = config.speed_cost_gain * (config.max_speed - trajectory[-1, 3])
                 ob_cost = config.obstacle_cost_gain * calc_obstacle_cost(trajectory, ob, config)
-    
+
                 final_cost = to_goal_cost + speed_cost + ob_cost
-    
+
                 # search minimum trajectory
                 if min_cost >= final_cost:
                     min_cost = final_cost
@@ -277,11 +277,11 @@ def calc_control_and_trajectory(x, dw, config, goal, ob):
         rospy.loginfo("can't avoid obstacle")
         best_u = old_u
         best_trajectory = predict_trajectory(x_init, old_u[0], old_u[1], config)
-        
+
     config.predict_time = config.predict_time_og
-        
+
     # rospy.loginfo(min_cost)
-    old_u = best_u                 
+    old_u = best_u
     return best_u, best_trajectory
 
 
@@ -366,7 +366,7 @@ def calc_goal_coord(state, course_x, course_y):
 
     dyn_look_ahead_dist = k * max(0,x_robot[3]) + look_ahead_dist
     # search nearest point index
-    
+
     dx = [state.x - icx for icx in course_x]
     dy = [state.y - icy for icy in course_y]
     d = [math.sqrt(idx ** 2 + idy ** 2)for (idx, idy) in zip(dx, dy)]
@@ -375,20 +375,20 @@ def calc_goal_coord(state, course_x, course_y):
     distance = 0
     while distance < dyn_look_ahead_dist :
         ind += 1
-        distance = d[ind%len(course_x)] 
-        
+        distance = d[ind%len(course_x)]
+
         if ind >len(course_x)*2:
             ind = ind_car
             rospy.loginfo('too far away')
             break
-          
+
     gx = course_x[ind%len(course_x)]-state.x
     gy = course_y[ind%len(course_x)]-state.y
-    
+
     R = np.array([[np.cos(state.yaw), -np.sin(state.yaw)],[np.sin(state.yaw), np.cos(state.yaw)]])
-    
+
     goal = np.array([gx,gy])
-    
+
     goal = R.T.dot(goal)
     return goal
 
@@ -406,7 +406,7 @@ def update_state_callback(data):
     state.yaw = yaw
 
 def load_path_callback(msg):
-    
+
     global course_x
     global course_y
     global course_speed
@@ -414,22 +414,22 @@ def load_path_callback(msg):
     global msg_path1
 
     msg=msg.data.split(" ")
-    
+
     """
     if (msg[0]=="load" and len(msg)>1):
         path_x = []
         path_y = []
         course_speed = []
-        
+
         # display the path to the look ahead point
         msg_path1 = Path()
         msg_path1.header.frame_id = 'map'
-        
-        
-            
-        if 'traj' in msg[1]:   
-        
-       
+
+
+
+        if 'traj' in msg[1]:
+
+
             f = open(rospack.get_path('ens_vision')+f'/paths/{msg[1]}.pckl', 'rb')
             marker,speeds,orientations,cmd_speeds = pickle.load(f)
             f.close()
@@ -437,20 +437,20 @@ def load_path_callback(msg):
                 path_x.append(pose1.x)
                 path_y.append(pose1.y)
                 course_speed.append(cmd_speeds[i])
-                
+
                 pose = PoseStamped()
-                
+
                 pose.header.frame_id = "map"
                 pose.header.seq = i
-                
+
                 pose.pose.position.x = pose1.x
                 pose.pose.position.y = pose1.y
-                
+
                 msg_path1.poses.append(pose)
-                
-        elif 'mcp' in msg[1]:   
-        
-       
+
+        elif 'mcp' in msg[1]:
+
+
             f = open(rospack.get_path('ens_voiture_autonome')+f'/paths/{msg[1]}.npy', 'rb')
             raceline = np.load(f)
             f.close()
@@ -458,26 +458,26 @@ def load_path_callback(msg):
                 path_x.append(position[0])
                 path_y.append(position[1])
                 course_speed.append(2)
-                
+
                 pose = PoseStamped()
-            
+
                 pose.header.frame_id = "map"
                 pose.header.seq = i
-                
-                
+
+
                 pose.pose.position.x = position[0]
                 pose.pose.position.y = position[1]
-                
+
                 msg_path1.poses.append(pose)
-            
+
         pub_full_path.publish(msg_path1)
 
         course_x = path_x
         course_y = path_y
         rospy.loginfo('traj loaded')"""
-        
+
     if (msg[0]=="load"):
-        if len(msg)>1:  
+        if len(msg)>1:
             if 'mcp' in msg[1]:
                 mcp = path_tools.load_mcp(msg[1])
                 path = path_tools.mcp_to_path(mcp)
@@ -490,7 +490,7 @@ def load_path_callback(msg):
             path_y = []
             path_yaw = []
             course_speed = []
-            
+
             for i, pose in enumerate(msg_path1.poses):
                 path_x.append(pose.pose.position.x)
                 path_y.append(pose.pose.position.y)
@@ -498,14 +498,14 @@ def load_path_callback(msg):
                 _, _, yaw = euler_from_quaternion(orientation_list)
                 path_yaw.append(yaw)
                 course_speed.append(1)
-            
+
             course_x = path_x
             course_y = path_y
             course_yaw = path_yaw
-            
+
 """
 def load_path_callback(msg):
-    
+
     global course_x
     global course_y
     global course_speed
@@ -515,12 +515,12 @@ def load_path_callback(msg):
         path_x = []
         path_y = []
         course_speed = []
-        
-    
-       
-        if 'traj' in msg[1]:   
-        
-       
+
+
+
+        if 'traj' in msg[1]:
+
+
             f = open(rospack.get_path('ens_vision')+f'/paths/{msg[1]}.pckl', 'rb')
             marker,speeds,orientations,cmd_speeds = pickle.load(f)
             f.close()
@@ -528,20 +528,20 @@ def load_path_callback(msg):
                 path_x.append(pose1.x)
                 path_y.append(pose1.y)
                 course_speed.append(cmd_speeds[i])
-                
+
                 pose = PoseStamped()
-                
+
                 pose.header.frame_id = "map"
                 pose.header.seq = i
-                
+
                 pose.pose.position.x = pose1.x
                 pose.pose.position.y = pose1.y
-                
+
                 # msg_path.poses.append(pose)
-                
-        elif 'mcp' in msg[1]:   
-        
-       
+
+        elif 'mcp' in msg[1]:
+
+
             f = open(rospack.get_path('ens_voiture_autonome')+f'/paths/{msg[1]}.npy', 'rb')
             raceline = np.load(f)
             f.close()
@@ -549,103 +549,97 @@ def load_path_callback(msg):
                 path_x.append(position[0])
                 path_y.append(position[1])
                 course_speed.append(2)
-                
+
                 pose = PoseStamped()
-            
+
                 pose.header.frame_id = "map"
                 pose.header.seq = i
-                
-                
+
+
                 pose.pose.position.x = position[0]
                 pose.pose.position.y = position[1]
-                
+
                 # msg_path.poses.append(pose)
-            
+
         # pub_full_path.publish(msg_path)
 
         course_x = path_x
         course_y = path_y
         rospy.loginfo('traj loaded')
-"""        
+"""
 
-def vel_callback(data):
 
-    global state
-    global vitesse_max
-    
-    state.v = data.data
-    # rospy.loginfo(state.v)
-    
+
 
 
 
 def odom_callback(data):
-    
+
     global x_robot
-    
+
     x_robot[3] = -data.twist.twist.linear.x
     x_robot[4] = data.twist.twist.angular.z
-    
-    
+
+
 
 def lidar_callback(data):
     global config
-    
+
     angle_min = data.angle_min
     angle_max = data.angle_max
     angle_increment = data.angle_increment
     ranges = data.ranges
     angles = np.linspace(angle_min,angle_max,len(ranges))
     xy=[]
-    
+
     for i,angle in enumerate(angles):
         xl=ranges[i]*np.cos(angle+np.pi)
         yl=ranges[i]*np.sin(angle+np.pi)
         if i%1==0 and abs(xl)<15 and abs(yl)<15 and abs(angle)>np.pi/3:
             xy.append([xl,yl])
-            
-        
+
+
     config.ob = np.array(xy)
-    
+
     # rospy.loginfo(config.ob)
-    
+
 def publish_marker(pub, x, y):
-    marker = Marker()     
+    marker = Marker()
     marker.header=Header(frame_id='base_link')
     marker.type=Marker.SPHERE
     marker.scale=Vector3(0.1, 0.1, 0.1)
     marker.pose=Pose(Point(x,y,0), Quaternion(0,0,0,1))
     marker.color = ColorRGBA(0,1,0,1)
     marker.lifetime = rospy.Duration(100)
-    
+
     pub.publish(marker)
 
 def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
     rospy.loginfo(__file__ + " start!!")
-    
+
     global pub_full_path
     global x_robot
     # init node
     rospy.init_node('dwa')
     rate = rospy.Rate(frequency) # hz
-    
+
     pub = rospy.Publisher('dwa_cmd', Twist, queue_size=100)
     pub_path = rospy.Publisher('dwa_path', Path, queue_size=100)
     pub_full_path = rospy.Publisher('loaded_path', Path, queue_size=10)
     rospy.Subscriber('scan', LaserScan, lidar_callback, queue_size=10)
-    
+
     rospy.Subscriber('amcl_pose', PoseWithCovarianceStamped, update_state_callback, queue_size=100)
     rospy.Subscriber('syscommand', String, load_path_callback, queue_size=10)
-    
+
     marker_pub = rospy.Publisher('dwa_look_ahead', Marker, queue_size=5)
 
     rospy.Subscriber('camera/odom/sample', Odometry, odom_callback, queue_size=10)
-    rospy.Subscriber('vel', Float32, vel_callback, queue_size=10)
+
 
     srv = Server(DWAConfig, callback)
-    
-    
-  
+
+
+
     # initial state [x(m), y(m), yaw(rad), v(m/s), omega(rad/s), steer(rad)]
     x_robot = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     # goal position [x(m), y(m)]
@@ -657,46 +651,46 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
     trajectory = np.array(x_robot)
     ob = config.ob
 
-    
+
     while not rospy.is_shutdown() :
         ob = config.ob
-    
+
         if len(course_x) != 0:
             goal = calc_goal_coord(state, course_x, course_y)
             publish_marker(marker_pub, goal[0], goal[1])
         u, predicted_trajectory = dwa_control(x_robot, config, goal, ob)
         v,steer = u
-        
+
         x_robot[5] = u[1]
-        
+
         # rospy.loginfo(v, steer)
         if v <0:
             v = -0.8
-        
+
         msg = Twist()
         msg.angular.z = steer
         msg.linear.x = v
         pub.publish(msg)
-        
+
         msg_path = Path()
         msg_path.header.frame_id = 'base_link'
-        
+
         for i,traj in enumerate(predicted_trajectory) :
             pose = PoseStamped()
-            
+
             pose.header.frame_id = "base_link"
             pose.header.seq = i
-            
+
             pose.pose.position.x = traj[0]
             pose.pose.position.y = traj[1]
-            
+
             msg_path.poses.append(pose)
-            
+
         pub_path.publish(msg_path)
         # x = motion(x, u, config.dt)  # simulate robot
         # trajectory = np.vstack((trajectory, x))  # store state history
         rate.sleep()
-        
+
 
         if show_animation:
             plt.cla()
@@ -714,10 +708,10 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.circle):
             plt.grid(True)
             plt.pause(0.0001)
 
-        
+
 
     rospy.loginfo("Done")
-   
+
 
 
 if __name__ == '__main__':

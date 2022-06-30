@@ -36,8 +36,8 @@ obstacle_velocity=0.5
 near_distance=0.7
 max_velocity_distance=3.0
 direct_steering=False
-    
-    
+
+
 def callback(config, level):
     global max_distance
     global cut_angle
@@ -50,7 +50,7 @@ def callback(config, level):
     global near_distance
     global max_velocity_distance
     global direct_steering
-    
+
     max_distance=config['max_distance']
     cut_angle=config['cut_angle']
     conv_width=config['conv_width']
@@ -62,8 +62,8 @@ def callback(config, level):
     near_distance=config['near_distance']
     max_velocity_distance=config['max_velocity_distance']
     direct_steering=config['direct_steering']
-            
-    
+
+
     return config
 
 def main():
@@ -71,21 +71,23 @@ def main():
     global pub
     global pub_marker
     global pub_marker1
+    global pub_scan
 
     # init node
     rospy.init_node('follow_the_gap')
     rate = rospy.Rate(100) # hz
-    
-    
+
+
     rospy.Subscriber('scan', LaserScan, lidar_callback, queue_size=10)
     pub_marker = rospy.Publisher('follow_the_gap_marker', Marker, queue_size=10)
     pub_marker1 = rospy.Publisher('follow_the_gap_obstacle_marker', Marker, queue_size=10)
     pub = rospy.Publisher('follow_the_gap_cmd', Twist, queue_size=10)
+    pub_scan = rospy.Publisher('ftg_scan', LaserScan, queue_size=10)
     srv = Server(FTGConfig, callback)
     rospy.spin()
-    
+
 def publish_marker(pub, x, y, theta, collide=False):
-    marker = Marker()     
+    marker = Marker()
     marker.header=Header(frame_id='laser')
     marker.type=Marker.CUBE
     marker.scale=Vector3(0.2, 0.2, 0.2)
@@ -96,7 +98,7 @@ def publish_marker(pub, x, y, theta, collide=False):
     else :
         marker.color = ColorRGBA(0,1,0,1)
     marker.lifetime = rospy.Duration(100)
-    
+
     pub.publish(marker)
 
 def lidar_callback(data):
@@ -109,44 +111,44 @@ def lidar_callback(data):
     # print(angle_min, angle_max)
     n = len(ranges)
     angles = np.linspace(angle_min,angle_max,n)
-    
-    
-    ranges[ranges>range_max]=range_max
-    
-    
-    
+
+
+    ranges[ranges>range_max]=0
+
+
+
     ranges[ranges>max_distance]=max_distance
-    
+
 
     new_ranges=np.zeros(n)
     for i,angle in enumerate(angles):
         if abs(angle)<cut_angle:
             #convolution
             new_ranges[i] = np.mean(ranges[max(0,i-conv_width):min(i+conv_width+1,n)])
-    
-    
+
+
     closest_dist = min(new_ranges[new_ranges!=0])
     closest_dist_index = list(new_ranges).index(closest_dist)
     closest_dist_angle = angle_increment * closest_dist_index + angle_min
-    
+
     x = -closest_dist * np.cos(closest_dist_angle)
     y = -closest_dist * np.sin(closest_dist_angle)
     publish_marker(pub_marker1, x, y, closest_dist_angle, collide=True)
     # print(closest_dist, closest_dist_index,closest_dist_angle)
-    
-    
-    
+
+
+
     bubble_number = int(np.ceil(radius / (closest_dist * angle_increment)))
-          
+
     for i in range(bubble_number):
         new_ranges[(closest_dist_index+i)%n] = 0
         new_ranges[(closest_dist_index-i)%n] = 0
-        
+
     # find the max gap in free space
-    
+
     max_idx = int(abs(cut_angle - angle_min) / angle_increment)
     min_idx = n - max_idx
-    
+
     start = min_idx
     end = min_idx
     current_start = min_idx -1
@@ -165,64 +167,69 @@ def lidar_callback(data):
                 start = current_start
                 end = i-1
             current_start = min_idx - 1
-            
+
     if current_start >= min_idx :
         duration = max_idx + 1 - current_start
         if duration > longest_duration:
             longest_duration = duration
             start = current_start
             end = max_idx
-      
+
     current_max = 0
     for i in range(start,end):
         if new_ranges[i]>current_max:
             current_max = new_ranges[i]
             angle = angle_increment * i + angle_min
-            
+
         elif new_ranges[i]==current_max:
             if abs(angle_increment * i + angle_min)< abs(angle):
                 angle = angle_increment * i + angle_min
-    
-    # display furthest point 
+
+    # display furthest point
     x = -current_max * np.cos(angle)
     y = -current_max * np.sin(angle)
     publish_marker(pub_marker, x, y, angle)
-    
-    
 
-    
+
+
+
     # publish steering command
     msg = Twist()
-    
+
     if direct_steering:
     # Raw angle from the point
         delta = np.clip(angle, -max_steering_angle, max_steering_angle)
         msg.angular.z = delta
-    
+
     else :
     # Steering as PP
         delta = math.atan2(2.0 * wheelbase_length * math.sin(angle) / current_max, 1.0)
         delta = np.clip(delta, -max_steering_angle, max_steering_angle)
         msg.angular.z = delta
-    
-    
-    
+
+
+
     if current_max < near_distance :
         speed = obstacle_velocity
-        
+
     elif current_max < max_velocity_distance :
         speed = current_max
-        
+
     else :
         speed = max_velocity
-        
+
     msg.linear.x = speed
-    
+
     pub.publish(msg)
-    
-        
- 
-    
+
+    new_ranges = np.roll(np.array(new_ranges),-180)
+    data.ranges = new_ranges
+    # data.header.stamp = rospy.Time.now()
+    pub_scan.publish(data)
+
+
+
+
 if __name__ == '__main__':
     try:
         main()
