@@ -224,6 +224,38 @@ rosrun ens_voiture_autonome joy_to_cmd_vel.py
 
 ## Follow the gap
 
+### Subscribed topic 
+
+* /scan
+
+### Published topics
+
+* /ftg_scan
+* /follow_the_gap_cmd
+* /follow_the_gap_marker
+* /follow_the_gap_obstacle_marker
+
+### Parameters
+
+* direct_steering
+
+
+#### Car parameters
+* wheelbase_length
+* max_steering_angle
+* radius
+
+#### Lidar processing parameters
+* max_distance
+* cut_angle
+* conv_width
+
+#### Speed control parameters
+* max_velocity
+* obstacle_velocity
+* near_distance
+* max_velocity_distance
+
 # Path planning
 
 ## Minimum curvature path by TUMFTM
