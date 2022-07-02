@@ -143,6 +143,11 @@ rosbag play 2022-03-25-16-21-15.bag --clock -l
 
 ```
 
+## Car setup
+
+```bat
+roslaunch ens_voiture_autonome car_launch.launch ass:=true mapping:=false
+```
 ## Param
 
 sim : true si on utilise un bag, false pour lancer le lidar
@@ -211,11 +216,18 @@ roslaunch ens_voiture_autonome exploration.launch sim:=false
 ```bash
 rosrun teleop_twist_keyboard teleop_twist_keyboard.py cmd_vel:=keyboard_cmd _speed:=1.0 _turn:=0.3
 ```
+### Published topic
+* /keyboard_cmd
 
 ## DualShock 4
+
+Read the controller input with Pygame and publish a custom message with the buttons and joystick state and rising edge of buttons.
+
 ```bash
 rosrun ens_voiture_autonome DS4_ROS.py
 ```
+### Published topic
+* /DS4_input
 
 ## Central controller
 
