@@ -151,22 +151,46 @@ map : nom de la carte utilisée pour la localisation (la carte doit se situer da
 
 ## Mapping
 
+### Hector SLAM
 Cartographie avec hector et le Lidar :
 ```bat
-roslaunch ens_voiture_autonome mapping.launch sim:=false
+roslaunch ens_voiture_autonome mapping_hect.launch sim:=false
+```
+### Rtab
+
+#### With odometry (Realsense T265)
+```bat
+roslaunch ens_voiture_autonome rtab_odom.launch sim:=false
 ```
 
-#### Sauvegarde de la carte
+#### Without odometry
+```bat
+roslaunch ens_voiture_autonome rtab.launch sim:=false
+```
+#### Save the map
 
 Pour sauvegarder la carte générée par Hector SLAM 
 ```bat
 rosrun ros_server ros_saver -f nom_carte
 ```
 
-## Localisation
+#### Load a map
 
+Pour sauvegarder la carte générée par Hector SLAM 
 ```bat
-roslaunch ens_voiture_autonome localization.launch sim:=false map:=nom_carte
+rosrun ros_server ros_server nom_carte.yaml
+```
+
+## Localization
+
+### With odometry (Realsense T265)
+```bat
+roslaunch ens_voiture_autonome localization_t265.launch sim:=false map:=nom_carte
+```
+
+### Without odometry
+```bat
+roslaunch ens_voiture_autonome localization_hector.launch sim:=false map:=nom_carte
 ```
 
 ## Navigation
