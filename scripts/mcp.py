@@ -44,7 +44,7 @@ save_centerline = False
 flip = False
 k1999 = False
 TUM = True
-rolling_number = 560
+rolling_number = 50
 ros = False
 
 plt.close('all')
@@ -52,7 +52,7 @@ plt.close('all')
 import rospkg
 rospack = rospkg.RosPack()
 
-map_name = 'map5'
+map_name = 'cachan'
 
 with open(rospack.get_path('ens_voiture_autonome')+f'/map/{map_name}.yaml') as file:
     # The FullLoader parameter handles the conversion from YAML
@@ -97,24 +97,24 @@ skeleton_lee = skeletonize(f1, method='lee')
 dist_on_skel = distance * skel
 
 fig, axes = plt.subplots(2, 2, figsize=(8, 8), sharex=True, sharey=True)
-ax = axes.ravel()
+axe = axes.ravel()
 
-ax[0].imshow(f1, cmap=plt.cm.gray)
-ax[0].set_title('original')
-ax[0].axis('off')
+axe[0].imshow(f1, cmap=plt.cm.gray)
+axe[0].set_title('original')
+axe[0].axis('off')
 
-ax[1].imshow(dist_on_skel, cmap='magma')
-ax[1].contour(f1, [0.5], colors='w')
-ax[1].set_title('medial_axis')
-ax[1].axis('off')
+axe[1].imshow(dist_on_skel, cmap='magma')
+axe[1].contour(f1, [0.5], colors='w')
+axe[1].set_title('medial_axis')
+axe[1].axis('off')
 
-ax[2].imshow(skeleton, cmap=plt.cm.gray, interpolation='nearest')
-ax[2].set_title('skeletonize')
-ax[2].axis('off')
+axe[2].imshow(skeleton, cmap=plt.cm.gray, interpolation='nearest')
+axe[2].set_title('skeletonize')
+axe[2].axis('off')
 
-ax[3].imshow(skeleton_lee, cmap=plt.cm.gray, interpolation='nearest')
-ax[3].set_title('skeletonize_3d')
-ax[3].axis('off')
+axe[3].imshow(skeleton_lee, cmap=plt.cm.gray, interpolation='nearest')
+axe[3].set_title('skeletonize_3d')
+axe[3].axis('off')
 
 
 y,x = np.where(skeleton_lee)
@@ -150,16 +150,21 @@ if flip :
     ys = np.flip(ys)
 
 fig, ((ax1, ax2, ax3), (ax4, ax5, ax6)) = plt.subplots(2, 3)
-fig.suptitle('Sharing x per column, y per row')
+# fig.suptitle('Sharing x per column, y per row')
 imgResult = cv.cvtColor(ima,cv.COLOR_GRAY2BGR)
 ax1.imshow(imgResult)
+ax1.set_title('Raw ROS map')
 # imgResult1 = cv.cvtColor(f1,cv.COLOR_GRAY2BGR)
 edt, indices = ndimage.distance_transform_edt(f1, return_indices=True)
-ax2.imshow(f1)
+# f1_plot = cv.cvtColor(f1,cv.COLOR_GRAY2BGR)
+ax2.imshow(f1*255, cmap='gray')
+ax2.set_title('Smothing and filtering')
 ax3.imshow(edt)
+ax3.set_title('Euclidian distance transform')
 ax4.plot(xs,ys, 'r')
 # ax4.plot(Y,X, 'b+')
 ax4.imshow(imgResult)
+ax4.set_title('Skeletonize')
 
 xm=[]
 ym=[]
@@ -171,6 +176,8 @@ for i in range(len(xs)):
     ym.append(yim)
 
 ax5.plot(xm,ym, 'g')
+ax5.set_title('Raw path in map frame')
+ax5.axis('equal')
 
 xf = signal.savgol_filter(xm, 25,3)
 yf = signal.savgol_filter(ym, 25,3)
@@ -180,7 +187,8 @@ ysf = signal.savgol_filter(ys, 25,3)
 
 
 ax6.plot(xf,yf, 'g')
-
+ax6.axis('equal')
+ax6.set_title('Filtered path in map frame')
 xm = xf
 ym = yf
 
@@ -192,7 +200,7 @@ outer_border=[]
 trackline = []
 
 width = 2
-border_width = 0.25
+border_width = 0.40
 
 for i in range(len(xm)):
 
@@ -257,7 +265,7 @@ if TUM:
     alpha_mincurv, curv_error_max = tph.opt_min_curv.opt_min_curv(reftrack=reftrack,
                                                  normvectors=normvec_norm,
                                                  A=M,
-                                                 kappa_bound=0.6,
+                                                 kappa_bound=0.5,
                                                  w_veh=0.20,
                                                  closed=CLOSED,
                                                  psi_s=psi_s,
@@ -428,11 +436,11 @@ def print_border(ax, waypoints, inner_border_waypoints, outer_border_waypoints):
     plot_coords(ax, line)
     plot_line(ax, line)
 
-fig1 = plt.figure(1, figsize=(16, 10))
-ax = fig1.add_subplot(111, facecolor='black')
-plt.axis('equal')
+# fig1 = plt.figure(1, figsize=(16, 10))
+# ax8 = fig1.add_subplot(111, facecolor='black')
+# plt.axis('equal')
 
-print_border(ax, center_line, inner_border, outer_border)
+# print_border(ax8, center_line, inner_border, outer_border)
 
 
 #%% Optimization

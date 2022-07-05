@@ -749,7 +749,7 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.CIRCLE):
 
 
     # initial state [x(m), y(m), yaw(rad), v(m/s), omega(rad/s),steer(rad)]
-    x_robot = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    x_robot = np.array([0.0, 0.0, 0.0, 1.0, 0.0, 0.0])
     # goal position [x(m), y(m)]
     goal = np.array([gx, gy])
 
@@ -814,10 +814,19 @@ def main(gx=3.0, gy=0.0, robot_type=RobotType.CIRCLE):
                 plt.gcf().canvas.mpl_connect(
                     'key_release_event',
                     lambda event: [exit(0) if event.key == 'escape' else None])
-                plt.plot(predicted_trajectory[:, 0], predicted_trajectory[:, 1], "-g")
+
+                for y in np.arange(-0.30, 0.30, CONFIGURATION.steering_resolution):
+                    trajectory = predict_trajectory(x_robot, x_robot[3], y, CONFIGURATION)
+                    cost = calc_obstacle_cost(trajectory, CONFIGURATION.ob, CONFIGURATION)
+                    if cost == np.inf :
+                        c = 'orange'
+                    else :
+                        c = "-c"
+                    plt.plot(trajectory[:, 0], trajectory[:, 1], c)
+                plt.plot(predicted_trajectory[:, 0], predicted_trajectory[:, 1], "-k")
                 plt.plot(x_robot[0], x_robot[1], "xr")
                 plt.plot(goal[0], goal[1], "xb")
-                plt.plot(ob[:, 0], ob[:, 1], "ok")
+                plt.plot(ob[:, 0], ob[:, 1], "or")
                 plot_robot(x_robot[0], x_robot[1], x_robot[2], CONFIGURATION)
                 plot_arrow(x_robot[0], x_robot[1], x_robot[2])
                 plt.axis("equal")

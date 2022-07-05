@@ -36,7 +36,7 @@ obstacle_velocity=0.5
 near_distance=0.7
 max_velocity_distance=3.0
 direct_steering=False
-
+infinite_to_max=True
 
 def callback(config, level):
     global max_distance
@@ -50,6 +50,7 @@ def callback(config, level):
     global near_distance
     global max_velocity_distance
     global direct_steering
+    global infinite_to_max
 
     max_distance=config['max_distance']
     cut_angle=config['cut_angle']
@@ -62,6 +63,7 @@ def callback(config, level):
     near_distance=config['near_distance']
     max_velocity_distance=config['max_velocity_distance']
     direct_steering=config['direct_steering']
+    infinite_to_max=config['infinite_to_max']
 
 
     return config
@@ -113,7 +115,13 @@ def lidar_callback(data):
     angles = np.linspace(angle_min,angle_max,n)
 
 
-    ranges[ranges>range_max]=0
+    if infinite_to_max :
+        ranges[ranges>range_max]=max_distance
+
+    else :
+        ranges[ranges>range_max] = 0
+
+
 
 
 

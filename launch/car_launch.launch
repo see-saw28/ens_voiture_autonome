@@ -1,12 +1,29 @@
 <?xml version="1.0"?>
 <launch>
 <arg name="mapping" default="false"/>
+<arg name="loca" default="t265"/>
 <arg name="ass" default="true"/>
+<arg name="map" default="map5"/>
+<arg name="lidar" default="false"/>
+
     <node if="$(arg ass)" pkg="ens_voiture_autonome" name="asservissement" type="asservissement.py"  launch-prefix="sudo"/>
     <node unless="$(arg ass)" pkg="ens_voiture_autonome" name="command" type="command.py"  launch-prefix="sudo"/>
     <include file="$(find ens_voiture_autonome)/launch/t265.launch"/>
-    <include unless="$(arg mapping)" file="$(find ens_voiture_autonome)/launch/localization.launch"/>
-    <include if="$(arg mapping)" file="$(find rplidar_ros)/launch/rplidar.launch" />
+    
+    <group if="$(eval arg('loca') == 't265' or arg('loca') == 'hector')">
+		<include  file="$(find ens_voiture_autonome)/launch/localization.launch">
+			<arg name="map" value="$(arg map)"/>
+			<arg name="method" value="$(arg loca)"/>
+		</include>
+    </group>
+    
+    <group if="$(eval arg('mapping') == 'hector' or arg('mapping') == 'rtab' or arg('mapping') == 'rtab_odom')">
+		<include file="$(find ens_voiture_autonome)/launch/mapping.launch">
+			<arg name="method" value="$(arg mapping)"/>
+		</include>
+	</group>
+	
+    <include if="$(arg lidar)" file="$(find rplidar_ros)/launch/rplidar.launch" />
 </launch>
  
  

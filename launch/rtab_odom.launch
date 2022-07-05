@@ -35,7 +35,7 @@
   <arg name="sim" default="false"/>
  
 
-<param name="/use_sim_time" value="(arg sim)"/>
+<param name="/use_sim_time" value="$(arg sim)"/>
   
   <node pkg="tf" type="static_transform_publisher" name="base_link_to_laser"  args="0 0 0 0 0 0 camera_pose_frame laser 10" />
   
@@ -58,7 +58,7 @@
     <param name="pub_odometry" value="true"/>
     
     <!-- Map size / start point -->
-    <param name="map_resolution" value="0.050"/>
+    <param name="map_resolution" value="0.025"/>
     <param name="map_size" value="2048"/>
     <param name="map_multi_res_levels" value="2" />
     
@@ -136,7 +136,7 @@
       <param name="Reg/Force3DoF"      type="string" value="true"/>
       <param name="RGBD/ProximityBySpace"    type="string" value="true"/>
       <param name="Icp/CorrespondenceRatio"  type="string" value="0.2"/>
-      <param name="Icp/VoxelSize"            type="string" value="0.05"/>
+      <param name="Icp/VoxelSize"            type="string" value="0.15"/>
       <param name="Icp/RangeMax"             type="string" value="$(arg max_range)"/>
       <param name="Grid/RangeMax"            type="string" value="$(arg max_range)"/>
       <param name="Grid/CellSize" type="string" value="0.025"/>
