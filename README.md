@@ -223,7 +223,7 @@ roslaunch ens_voiture_autonome exploration.launch sim:=false
 rosrun teleop_twist_keyboard teleop_twist_keyboard.py cmd_vel:=keyboard_cmd _speed:=1.0 _turn:=0.3
 ```
 ### Published topic
-* /keyboard_cmd
+* /keyboard_cmd ([geometry_msgs/Twist](http://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/Twist.html))
 
 ## DualShock 4
 
@@ -233,7 +233,7 @@ Read the controller input with Pygame and publish a custom message with the butt
 rosrun ens_voiture_autonome DS4_ROS.py
 ```
 ### Published topic
-* /DS4_input
+* /DS4_input (ens_voiture_autonome/DS4)
 
 ## Central controller
 
@@ -246,21 +246,21 @@ rosrun ens_voiture_autonome joy_to_cmd_vel.py
 * Control backward motion in stuck situation
 
 ### Subscribed topics
-* /DS4_input
-* /keyboard_cmd
-* /pure_pursuit_cmd
-* /stanley_control_cmd
-* /local_steering_controller_cmd
-* /dwa_cmd
-* /move_base_cmd
-* /follow_the_gap_cmd
-* /AEB
-* /collision
-* /stuck
-* /camera/odom/sample
+* /DS4_input (ens_voiture_autonome/DS4)
+* /keyboard_cmd ([geometry_msgs/Twist](http://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/Twist.html))
+* /pure_pursuit_cmd ([geometry_msgs/Twist](http://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/Twist.html))
+* /stanley_control_cmd ([geometry_msgs/Twist](http://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/Twist.html))
+* /local_steering_controller_cmd ([geometry_msgs/Twist](http://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/Twist.html))
+* /dwa_cmd ([geometry_msgs/Twist](http://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/Twist.html))
+* /move_base_cmd ([geometry_msgs/Twist](http://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/Twist.html))
+* /follow_the_gap_cmd ([geometry_msgs/Twist](http://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/Twist.html))
+* /AEB ([std_msgs/Bool](http://docs.ros.org/en/lunar/api/std_msgs/html/msg/Bool.html))
+* /collision ([std_msgs/Bool](http://docs.ros.org/en/lunar/api/std_msgs/html/msg/Bool.html))
+* /stuck ([std_msgs/Bool](http://docs.ros.org/en/lunar/api/std_msgs/html/msg/Bool.html))
+* /camera/odom/sample ([nav_msgs/Odometry](http://docs.ros.org/en/noetic/api/nav_msgs/html/msg/Odometry.html))
 
 ### Published topic
-* /cmd_vel
+* /cmd_vel ([geometry_msgs/Twist](http://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/Twist.html))
 
 # Reactive method
 
@@ -268,29 +268,29 @@ rosrun ens_voiture_autonome joy_to_cmd_vel.py
 
 ### Subscribed topic 
 
-* /scan
+* /scan ([sensor_msgs/LaserScan](http://docs.ros.org/en/lunar/api/sensor_msgs/html/msg/LaserScan.html))
 
 ### Published topics
 
-* /ftg_scan
-* /follow_the_gap_cmd
-* /follow_the_gap_marker
-* /follow_the_gap_obstacle_marker
+* /ftg_scan ([sensor_msgs/LaserScan](http://docs.ros.org/en/lunar/api/sensor_msgs/html/msg/LaserScan.html))
+* /follow_the_gap_cmd ([geometry_msgs/Twist](http://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/Twist.html))
+* /follow_the_gap_marker ([visualization_msgs/Marker](http://docs.ros.org/en/noetic/api/visualization_msgs/html/msg/Marker.html))
+* /follow_the_gap_obstacle_marker ([visualization_msgs/Marker](http://docs.ros.org/en/noetic/api/visualization_msgs/html/msg/Marker.html))
 
 ### Parameters
 
-* direct_steering
+* direct_steering : bool
 
 
 #### Car parameters
-* wheelbase_length
-* max_steering_angle
-* radius
+* wheelbase_length : float : wheelbase size of the car in meter
+* max_steering_angle : float : maximum steering angle in radian
+* radius : float : width of the car in meter
 
 #### Lidar processing parameters
-* max_distance
-* cut_angle
-* conv_width
+* max_distance : float
+* cut_angle : float
+* conv_width : int
 
 #### Speed control parameters
 * max_velocity
@@ -319,81 +319,159 @@ ROS map -> MCP Path -> ROS Path (via Path tools)
 ## Pure Pursuit
 
 ### Subscribed topics
-* /amcl_pose
-* /syscommand
-* /mcp_path
-* /camera/odom/sample
-* /scan (Optional)
+* /amcl_pose ([geometry_msgs/PoseWithCovarianceStamped](http://docs.ros.org/en/lunar/api/geometry_msgs/html/msg/PoseWithCovarianceStamped.html))
+* /syscommand ([std_msgs/String](http://docs.ros.org/en/noetic/api/std_msgs/html/msg/String.html))
+* /mcp_path ([nav_msgs/Path](http://docs.ros.org/en/lunar/api/nav_msgs/html/msg/Path.html))
+* /camera/odom/sample ([nav_msgs/Odometry](http://docs.ros.org/en/noetic/api/nav_msgs/html/msg/Odometry.html))
+* /scan (Optional, [sensor_msgs/LaserScan](http://docs.ros.org/en/lunar/api/sensor_msgs/html/msg/LaserScan.html))
 
 ### Published topics
-* /pure_pursuit_cmd
-* /pure_pursuit_look_ahead
-* /pure_pursuit_path
-* /collision (Optional)
-* /collision_check (Optional)
+* /pure_pursuit_cmd ([geometry_msgs/Twist](http://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/Twist.html))
+* /pure_pursuit_look_ahead ([visualization_msgs/Marker](http://docs.ros.org/en/noetic/api/visualization_msgs/html/msg/Marker.html))
+* /pure_pursuit_path ([nav_msgs/Path](http://docs.ros.org/en/lunar/api/nav_msgs/html/msg/Path.html))
+* /collision (Optional, [std_msgs/Bool](http://docs.ros.org/en/lunar/api/std_msgs/html/msg/Bool.html))
+* /collision_check (Optional, [visualization_msgs/Marker](http://docs.ros.org/en/noetic/api/visualization_msgs/html/msg/Marker.html))
+
+### Parameters
+
+#### Car parameters
+* wheelbase_length : float : wheelbase size of the car in meter
+* max_steering_angle : float : maximum steering angle in radian
+* radius : float : width of the car in meter
+
+#### Look ahead parameters
+* look_ahead_dist : float : static look ahead distance 
+* k : float : look foward term
+
+`dyn_look_ahead_dist = look_ahead_dist + k*v`
+
+#### Obstacle detection parameters
+* look_ahead_dist_obstacle : float : static look ahead distance 
+* k_obstacle : float : look foward term
+`dyn_look_ahead_dist = look_ahead_dist + k*v`
+* detect_collision : bool : when set to true, if an obstacle is detected then use the `local_steering_controller_cmd`
 
 ## Stanley control
 
 ### Subscribed topics
-* /amcl_pose
-* /syscommand
-* /mcp_path
-* /camera/odom/sample
+* /amcl_pose ([geometry_msgs/PoseWithCovarianceStamped](http://docs.ros.org/en/lunar/api/geometry_msgs/html/msg/PoseWithCovarianceStamped.html))
+* /syscommand ([std_msgs/String](http://docs.ros.org/en/noetic/api/std_msgs/html/msg/String.html))
+* /mcp_path ([nav_msgs/Path](http://docs.ros.org/en/lunar/api/nav_msgs/html/msg/Path.html))
+* /camera/odom/sample ([nav_msgs/Odometry](http://docs.ros.org/en/noetic/api/nav_msgs/html/msg/Odometry.html))
 
 ### Published topics
-* /stanley_control_cmd
-* /stanley_controller_look_ahead
+* /stanley_control_cmd ([geometry_msgs/Twist](http://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/Twist.html))
+* /stanley_controller_look_ahead ([visualization_msgs/Marker](http://docs.ros.org/en/noetic/api/visualization_msgs/html/msg/Marker.html))
+
+### Parameters
+
+#### Car parameters
+* wheelbase_length : float : wheelbase size of the car in meter
+* max_steering_angle : float : maximum steering angle in radian
+* radius : float : width of the car in meter
+
+#### Stanley parameters
+* k_sc : float :
+* k_soft : float :
+* k_steer : float :
 
 ## Dynamic window approach (adapted for car like robot)
 
 ### Subscribed topics
-* /amcl_pose
-* /syscommand
-* /mcp_path
-* /camera/odom/sample
-* /scan 
+* /amcl_pose ([geometry_msgs/PoseWithCovarianceStamped](http://docs.ros.org/en/lunar/api/geometry_msgs/html/msg/PoseWithCovarianceStamped.html))
+* /syscommand ([std_msgs/String](http://docs.ros.org/en/noetic/api/std_msgs/html/msg/String.html))
+* /mcp_path ([nav_msgs/Path](http://docs.ros.org/en/lunar/api/nav_msgs/html/msg/Path.html))
+* /camera/odom/sample ([nav_msgs/Odometry](http://docs.ros.org/en/noetic/api/nav_msgs/html/msg/Odometry.html))
+* /scan ([sensor_msgs/LaserScan](http://docs.ros.org/en/lunar/api/sensor_msgs/html/msg/LaserScan.html))
 
 ### Published topics
-* /dwa_cmd
-* /daw_look_ahead
-* /dwa_path
+* /dwa_cmd ([geometry_msgs/Twist](http://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/Twist.html))
+* /daw_look_ahead ([visualization_msgs/Marker](http://docs.ros.org/en/noetic/api/visualization_msgs/html/msg/Marker.html))
+* /dwa_path ([nav_msgs/Path](http://docs.ros.org/en/lunar/api/nav_msgs/html/msg/Path.html))
 
+### Parameters
+
+#### Car parameters
+* wheelbase_length : float : wheelbase size of the car in meter
+* robot_width : float : width of the car in meter
+* robot_length : float : length of the car in meter
+* max_steering_angle : float : maximum steering angle in radian
+* steering_speed
+* max_yaw_rate
+* max_speed
+* min_speed
+* max_accel
+
+
+#### DWA parameters
+* steering_resolution : float : steering resolution for the dynamic window
+* v_resolution : float : speed resolution for the dynamic window
+* predict_time : float : predict time for trajectory prediction
+* dt : float : time step for trajectory prediction
+* to_goal_cost_gain : float : gain for the to goal cost function
+* speed_cost_gain : float : gain for the speed cost function
+* obstacle_cost_gain : float : gain for the obstacle cost function
+
+#### Look ahead parameters
+* look_ahead_dist : float : static look ahead distance 
+* k : float : look foward term
 
 ## Local steering controller (derivated from DWA only for steering)
 
 ### Subscribed topics
-* /amcl_pose
-* /syscommand
-* /mcp_path
-* /camera/odom/sample
-* /scan 
-* /collision (optional)
+* /amcl_pose ([geometry_msgs/PoseWithCovarianceStamped](http://docs.ros.org/en/lunar/api/geometry_msgs/html/msg/PoseWithCovarianceStamped.html))
+* /syscommand ([std_msgs/String](http://docs.ros.org/en/noetic/api/std_msgs/html/msg/String.html))
+* /mcp_path ([nav_msgs/Path](http://docs.ros.org/en/lunar/api/nav_msgs/html/msg/Path.html))
+* /camera/odom/sample ([nav_msgs/Odometry](http://docs.ros.org/en/noetic/api/nav_msgs/html/msg/Odometry.html))
+* /scan ([sensor_msgs/LaserScan](http://docs.ros.org/en/lunar/api/sensor_msgs/html/msg/LaserScan.html))
+* /collision (optional, [std_msgs/Bool](http://docs.ros.org/en/lunar/api/std_msgs/html/msg/Bool.html)
 
 ### Published topics
-* /local_steering_controller_cmd
-* /local_steering_controller_look_ahead
-* /local_steering_controller_path
+* /local_steering_controller_cmd ([geometry_msgs/Twist](http://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/Twist.html))
+* /local_steering_controller_look_ahead ([visualization_msgs/Marker](http://docs.ros.org/en/noetic/api/visualization_msgs/html/msg/Marker.html))
+* /local_steering_controller_path ([nav_msgs/Path](http://docs.ros.org/en/lunar/api/nav_msgs/html/msg/Path.html))
+
+### Parameters
+
+#### Car parameters
+* wheelbase_length : float : wheelbase size of the car in meter
+* robot_width : float : width of the car in meter
+* robot_length : float : length of the car in meter
+* max_steering_angle : float : maximum steering angle in radian
+* steering_speed 
+* max_yaw_rate
+
+#### DWA parameters
+* steering_resolution : float : steering resolution for the dynamic window
+* predict_time : float : predict time for trajectory prediction
+* dt : float : time step for trajectory prediction
+* to_goal_cost_gain : float : gain for the to goal cost function
+* obstacle_cost_gain : float : gain for the obstacle cost function
+
+#### Look ahead parameters
+* look_ahead_dist : float : static look ahead distance 
+* k : float : look foward term
 
 # Safety
 
 ## AEB (automatic emergency breaking)
 
 ### Subscribed topics
-* /cmd_vel or /vel
-* /camera/odom/sample
-* /scan 
+* /cmd_vel or /vel ([geometry_msgs/Twist](http://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/Twist.html))
+* /camera/odom/sample ([nav_msgs/Odometry](http://docs.ros.org/en/noetic/api/nav_msgs/html/msg/Odometry.html))
+* /scan ([sensor_msgs/LaserScan](http://docs.ros.org/en/lunar/api/sensor_msgs/html/msg/LaserScan.html))
 
 
 ### Published topics
-* /AEB
-* /aeb_marker
+* /AEB ([std_msgs/Bool](http://docs.ros.org/en/lunar/api/std_msgs/html/msg/Bool.html))
+* /aeb_marker ([visualization_msgs/Marker](http://docs.ros.org/en/noetic/api/visualization_msgs/html/msg/Marker.html))
 
 ## Stuck detector
 
 ### Subscribed topics
-* /camera/odom/sample
-* /scan 
+* /camera/odom/sample ([nav_msgs/Odometry](http://docs.ros.org/en/noetic/api/nav_msgs/html/msg/Odometry.html))
+* /scan ([sensor_msgs/LaserScan](http://docs.ros.org/en/lunar/api/sensor_msgs/html/msg/LaserScan.html))
 
 
 ### Published topic
-* /stuck
+* /stuck ([std_msgs/Bool](http://docs.ros.org/en/lunar/api/std_msgs/html/msg/Bool.html))
